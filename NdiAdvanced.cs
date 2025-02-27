@@ -37,6 +37,10 @@ public static unsafe partial class NdiAdvanced
     public static extern void send_send_video_async_v2_adv(nint pInstance, ref video_frame_v2_t pVideoData);
 
 
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl, EntryPoint = "NDIlib_send_send_audio_v3", ExactSpelling = true)]
+    public static extern void send_send_audio_v3(nint p_instance, ref audio_frame_v3_t p_audio_data);
+
+
     [DllImport(LibraryName, EntryPoint = "NDIlib_find_create_v3", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
     public static extern nint Find_create_v3(
         ref NDIlib.find_create_t createSettings,
