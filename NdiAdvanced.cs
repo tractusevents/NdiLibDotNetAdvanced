@@ -17,19 +17,113 @@ public static unsafe partial class NdiAdvanced
     // https://github.com/GabrielFrigo4/SDL-Sharp/blob/3daad4b05c11c1a3987ae24c12c78092be3aa9c3/SDL-Sharp/SDL/SDL.Loader.cs#L11
 
     private const string LibraryName = "NdiAdv";
+    [DllImport(LibraryName, EntryPoint = "NDIlib_recv_free_video_v2", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    public static extern void recv_free_video_v2(IntPtr p_instance, ref video_frame_v2_t p_video_data);
+    [DllImport(LibraryName, EntryPoint = "NDIlib_recv_free_audio_v3", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    public static extern void recv_free_audio_v3(IntPtr p_instance, ref audio_frame_v3_t p_audio_data);
+    [DllImport(LibraryName, EntryPoint = "NDIlib_recv_free_metadata", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    public static extern void recv_free_metadata(IntPtr p_instance, ref metadata_frame_t p_metadata);
+    [DllImport(LibraryName, EntryPoint = "NDIlib_recv_free_string", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    public static extern void recv_free_string(IntPtr p_instance, IntPtr p_string);
+
+    [DllImport(LibraryName, EntryPoint = "NDIlib_recv_ptz_is_supported", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    public static extern bool recv_ptz_is_supported(IntPtr p_instance);
+
+    //NDIlib_send_add_connection_metadata
+    [DllImport(LibraryName, EntryPoint = "NDIlib_send_add_connection_metadata", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    public static extern void send_add_connection_metadata(
+        nint pInstance,
+        ref metadata_frame_t metadataFrame);
+
+    [DllImport(LibraryName, EntryPoint = "NDIlib_recv_capture_v3", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    public static extern frame_type_e recv_capture_v3(IntPtr p_instance, ref video_frame_v2_t p_video_data, ref audio_frame_v3_t p_audio_data, ref metadata_frame_t p_metadata, UInt32 timeout_in_ms);
+
+    [DllImport(LibraryName, EntryPoint = "NDIlib_send_capture", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    public static extern frame_type_e send_capture(
+        nint pInstance,
+        ref metadata_frame_t pMetadata,
+        uint timeoutInMs);
+
+    [DllImport(LibraryName, EntryPoint = "NDIlib_send_free_metadata", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    public static extern void send_free_metadata(
+        nint pInstance,
+        ref metadata_frame_t pMetadata);
+
+    // recv_capture_v3 
+    [DllImport(LibraryName, EntryPoint = "NDIlib_recv_capture_v3", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    public unsafe static extern frame_type_e recv_capture_v3(
+        IntPtr p_instance,
+        video_frame_v2_t* p_video_data,
+        audio_frame_v3_t* p_audio_data,
+        metadata_frame_t* p_metadata,
+        int timeout_in_ms);
+
+    [DllImport(LibraryName, EntryPoint = "NDIlib_recv_send_metadata", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    public static extern bool recv_send_metadata(
+        nint pInstance,
+        ref NDIlib.metadata_frame_t metadataFrame);
+
+    [DllImport(LibraryName, EntryPoint = "NDIlib_recv_destroy", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    public static extern void recv_destroy(IntPtr p_instance);
+
+
+    // framesync_create_v2 
+    [DllImport(LibraryName, EntryPoint = "NDIlib_framesync_create", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    public static extern IntPtr framesync_create(IntPtr p_receiver);
+
+    // framesync_destroy 
+    [DllImport(LibraryName, EntryPoint = "NDIlib_framesync_destroy", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    public static extern void framesync_destroy(IntPtr p_instance);
+
+    // framesync_capture_audio 
+    [DllImport(LibraryName, EntryPoint = "NDIlib_framesync_capture_audio", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    public static extern IntPtr framesync_capture_audio(IntPtr p_instance, ref audio_frame_v2_t p_audio_data, int sample_rate, int no_channels, int no_samples);
+
+    // framesync_capture_audio_v2
+    [DllImport(LibraryName, EntryPoint = "NDIlib_framesync_capture_audio_v2", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    public static extern IntPtr framesync_capture_audio_v2(IntPtr p_instance, ref audio_frame_v3_t p_audio_data, int sample_rate, int no_channels, int no_samples);
+
+    // framesync_free_audio 
+    [DllImport(LibraryName, EntryPoint = "NDIlib_framesync_free_audio", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    public static extern void framesync_free_audio(IntPtr p_instance, ref audio_frame_v2_t p_audio_data);
+
+    // framesync_free_audio_v2
+    [DllImport(LibraryName, EntryPoint = "NDIlib_framesync_free_audio_v2", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    public static extern void framesync_free_audio_v2(IntPtr p_instance, ref audio_frame_v3_t p_audio_data);
+
+    // framesync_audio_queue_depth 
+    [DllImport(LibraryName, EntryPoint = "NDIlib_framesync_audio_queue_depth", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    public static extern int framesync_audio_queue_depth(IntPtr p_instance);
+
+    // framesync_capture_video 
+    [DllImport(LibraryName, EntryPoint = "NDIlib_framesync_capture_video", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    public static extern void framesync_capture_video(IntPtr p_instance, ref video_frame_v2_t p_video_data, frame_format_type_e field_type);
+
+    // framesync_free_video 
+    [DllImport(LibraryName, EntryPoint = "NDIlib_framesync_free_video", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    public static extern void framesync_free_video(IntPtr p_instance, ref video_frame_v2_t p_video_data);
+
+
+    [DllImport(LibraryName, EntryPoint = "NDIlib_recv_kvm_is_supported", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    public static extern bool recv_kvm_is_supported(nint pInstance);
 
     [DllImport(LibraryName, EntryPoint = "NDIlib_send_create_v2", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
-    public static extern IntPtr NDIlib_send_create_v2(
+    public static extern IntPtr send_create_v2(
         ref NDIlib.send_create_t create, 
         [MarshalAs(UnmanagedType.LPStr)] string p_config_data);
 
+    [DllImport(LibraryName, EntryPoint = "NDIlib_send_create_v2", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    public static extern IntPtr send_create_v2(
+        ref NDIlib.send_create_t create,
+        nint p_config_data);
+
     [DllImport(LibraryName, EntryPoint = "NDIlib_send_destroy", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
-    public static extern void NDIlib_send_destroy_adv(IntPtr p_instance);
+    public static extern void send_destroy(IntPtr p_instance);
 
     // send_send_video_v2 
     [DllImport(LibraryName, EntryPoint = "NDIlib_send_send_video_v2", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
-    public static extern void send_send_video_v2_adv(
-        IntPtr p_instance, 
+    public static extern void send_send_video_v2(
+        nint p_instance, 
         ref video_frame_v2_t p_video_data);
 
     // void NDIlib_send_send_video_async_v2(NDIlib_send_instance_t p_instance, const NDIlib_video_frame_v2_t* p_video_data);
@@ -42,22 +136,18 @@ public static unsafe partial class NdiAdvanced
 
 
     [DllImport(LibraryName, EntryPoint = "NDIlib_find_create_v3", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
-    public static extern nint Find_create_v3(
+    public static extern nint find_create_v3(
         ref NDIlib.find_create_t createSettings,
         nint configData);
 
     [DllImport(LibraryName, EntryPoint = "NDIlib_recv_create_v4", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
-    public static extern nint Recv_create_v4(
+    public static extern nint recv_create_v4(
         ref NDIlib.recv_create_v3_t createSettings,
         nint configData);
 
-    [DllImport(LibraryName, EntryPoint = "NDIlib_send_create_v2", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
-    public static extern nint Send_create_v2(
-        ref NDIlib.send_create_t createSettings,
-        nint configData);
 
     [DllImport(LibraryName, EntryPoint = "NDIlib_recv_set_bandwidth", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
-    public static extern bool Recv_set_bandwidth(
+    public static extern bool recv_set_bandwidth(
         nint instance,
         NDIlib.recv_bandwidth_e bandwidth);
 
