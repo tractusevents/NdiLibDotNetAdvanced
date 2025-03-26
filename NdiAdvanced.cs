@@ -189,7 +189,7 @@ public static unsafe partial class NdiAdvanced
 
 
 
-    [DllImport("LibraryName", CallingConvention = CallingConvention.Cdecl, EntryPoint = "NDIlib_send_create", ExactSpelling = true)]
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl, EntryPoint = "NDIlib_send_create", ExactSpelling = true)]
     public static extern nint send_create(ref send_create_t p_create_settings);
 
 
