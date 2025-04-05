@@ -1,5 +1,6 @@
 # NdiLibDotNetAdvanced
  
-Managed wrapper for the NDI Advanced SDK 6.1.
+Managed C# wrapper for the NDI Advanced SDK 6.1.
 
-THIS CODE IS CONFIDENTIAL AND PROPRIETARY TO TRACTUS EVENTS. DO NOT OPEN-SOURCE OR REDISTRIBUTE WITHOUT PERMISSION.
+*NOTE:* This wrapper library alone will not activate an NDI advanced license. You still
+need to bring your own.

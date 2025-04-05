@@ -10,6 +10,19 @@ using static NewTek.NDIlib;
 
 namespace Tractus.Ndi;
 
+[UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+public delegate bool CustomVideoAllocatorCallback(nint pOpaque, ref NDIlib.video_frame_v2_t videoData);
+
+[UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+public delegate bool CustomVideoFreeCallback(nint pOpaque, ref NDIlib.video_frame_v2_t videoData);
+
+[UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+public delegate bool CustomAudioAllocatorCallback(nint pOpaque, ref NDIlib.audio_frame_v3_t audioData);
+
+[UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+public delegate bool CustomAudioFreeCallback(nint pOpaque, ref NDIlib.audio_frame_v3_t audioData);
+
+
 [StructLayout(LayoutKind.Sequential)]
 public struct NDIlib_source_v2_t
 {
@@ -30,6 +43,22 @@ public static unsafe partial class NdiAdvanced
     // https://github.com/GabrielFrigo4/SDL-Sharp/blob/3daad4b05c11c1a3987ae24c12c78092be3aa9c3/SDL-Sharp/SDL/SDL.Loader.cs#L11
 
     private const string LibraryName = "NdiAdv";
+
+
+    [DllImport(LibraryName, EntryPoint = "NDIlib_recv_set_video_allocator", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    public static extern void recv_set_video_allocator(
+        nint pinstance, 
+        nint pOpaque,
+        CustomVideoAllocatorCallback allocator,
+        CustomVideoFreeCallback freer);
+
+    [DllImport(LibraryName, EntryPoint = "NDIlib_recv_set_audio_allocator", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    public static extern void recv_set_audio_allocator(
+        nint pinstance,
+        nint pOpaque,
+        CustomAudioAllocatorCallback allocator,
+        CustomAudioFreeCallback freer);
+
 
     [DllImport(LibraryName, EntryPoint = "NDIlib_recv_free_video_v2", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
     public static extern void recv_free_video_v2(IntPtr p_instance, ref video_frame_v2_t p_video_data);
@@ -156,6 +185,14 @@ public static unsafe partial class NdiAdvanced
     [DllImport(LibraryName, EntryPoint = "NDIlib_recv_kvm_is_supported", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
     public static extern bool recv_kvm_is_supported(nint pInstance);
 
+
+
+
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl, EntryPoint = "NDIlib_send_create", ExactSpelling = true)]
+    public static extern nint send_create(ref send_create_t p_create_settings);
+
+
     [DllImport(LibraryName, EntryPoint = "NDIlib_send_create_v2", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
     public static extern IntPtr send_create_v2(
         ref NDIlib.send_create_t create, 
@@ -174,6 +211,16 @@ public static unsafe partial class NdiAdvanced
     public static extern void send_send_video_v2(
         nint p_instance, 
         ref video_frame_v2_t p_video_data);
+
+    // send_send_video_v2 
+    [DllImport(LibraryName, EntryPoint = "NDIlib_send_send_video_v2", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    public static unsafe extern void send_send_video_v2(
+        nint p_instance,
+        video_frame_v2_t* p_video_data);
+
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl, EntryPoint = "NDIlib_send_send_video_async_v2", ExactSpelling = true)]
+    public static extern void send_send_video_async_v2(nint p_instance, ref video_frame_v2_t p_video_data);
 
     // void NDIlib_send_send_video_async_v2(NDIlib_send_instance_t p_instance, const NDIlib_video_frame_v2_t* p_video_data);
     [DllImport(LibraryName, EntryPoint = "NDIlib_send_send_video_async_v2", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
@@ -331,4 +378,128 @@ public static unsafe partial class NdiAdvanced
 
 		return handle;
     }
+}
+
+public static class NDIConstants
+{
+    // FourCC constants for video frame types
+    public const uint NDIlib_FourCC_video_type_ex_SHQ0_highest_bandwidth =
+          ((uint)'S') | (((uint)'H') << 8) | (((uint)'Q') << 16) | (((uint)'0') << 24);
+    public const uint NDIlib_FourCC_type_SHQ0_highest_bandwidth = NDIlib_FourCC_video_type_ex_SHQ0_highest_bandwidth;
+
+    public const uint NDIlib_FourCC_video_type_ex_SHQ2_highest_bandwidth =
+          ((uint)'S') | (((uint)'H') << 8) | (((uint)'Q') << 16) | (((uint)'2') << 24);
+    public const uint NDIlib_FourCC_type_SHQ2_highest_bandwidth = NDIlib_FourCC_video_type_ex_SHQ2_highest_bandwidth;
+
+    public const uint NDIlib_FourCC_video_type_ex_SHQ7_highest_bandwidth =
+          ((uint)'S') | (((uint)'H') << 8) | (((uint)'Q') << 16) | (((uint)'7') << 24);
+    public const uint NDIlib_FourCC_type_SHQ7_highest_bandwidth = NDIlib_FourCC_video_type_ex_SHQ7_highest_bandwidth;
+
+    public const uint NDIlib_FourCC_video_type_ex_SHQ0_lowest_bandwidth =
+          ((uint)'s') | (((uint)'h') << 8) | (((uint)'q') << 16) | (((uint)'0') << 24);
+    public const uint NDIlib_FourCC_type_SHQ0_lowest_bandwidth = NDIlib_FourCC_video_type_ex_SHQ0_lowest_bandwidth;
+
+    public const uint NDIlib_FourCC_video_type_ex_SHQ2_lowest_bandwidth =
+          ((uint)'s') | (((uint)'h') << 8) | (((uint)'q') << 16) | (((uint)'2') << 24);
+    public const uint NDIlib_FourCC_type_SHQ2_lowest_bandwidth = NDIlib_FourCC_video_type_ex_SHQ2_lowest_bandwidth;
+
+    public const uint NDIlib_FourCC_video_type_ex_SHQ7_lowest_bandwidth =
+          ((uint)'s') | (((uint)'h') << 8) | (((uint)'q') << 16) | (((uint)'7') << 24);
+    public const uint NDIlib_FourCC_type_SHQ7_lowest_bandwidth = NDIlib_FourCC_video_type_ex_SHQ7_lowest_bandwidth;
+
+    public const uint NDIlib_FourCC_video_type_ex_H264_highest_bandwidth =
+          ((uint)'H') | (((uint)'2') << 8) | (((uint)'6') << 16) | (((uint)'4') << 24);
+    public const uint NDIlib_FourCC_type_H264_highest_bandwidth = NDIlib_FourCC_video_type_ex_H264_highest_bandwidth;
+
+    public const uint NDIlib_FourCC_video_type_ex_H264_lowest_bandwidth =
+          ((uint)'h') | (((uint)'2') << 8) | (((uint)'6') << 16) | (((uint)'4') << 24);
+    public const uint NDIlib_FourCC_type_H264_lowest_bandwidth = NDIlib_FourCC_video_type_ex_H264_lowest_bandwidth;
+
+    public const uint NDIlib_FourCC_video_type_ex_HEVC_highest_bandwidth =
+          ((uint)'H') | (((uint)'E') << 8) | (((uint)'V') << 16) | (((uint)'C') << 24);
+    public const uint NDIlib_FourCC_type_HEVC_highest_bandwidth = NDIlib_FourCC_video_type_ex_HEVC_highest_bandwidth;
+
+    public const uint NDIlib_FourCC_video_type_ex_HEVC_lowest_bandwidth =
+          ((uint)'h') | (((uint)'e') << 8) | (((uint)'v') << 16) | (((uint)'c') << 24);
+    public const uint NDIlib_FourCC_type_HEVC_lowest_bandwidth = NDIlib_FourCC_video_type_ex_HEVC_lowest_bandwidth;
+
+    public const uint NDIlib_FourCC_video_type_ex_H264_alpha_highest_bandwidth =
+          ((uint)'A') | (((uint)'2') << 8) | (((uint)'6') << 16) | (((uint)'4') << 24);
+    public const uint NDIlib_FourCC_type_h264_alpha_highest_bandwidth = NDIlib_FourCC_video_type_ex_H264_alpha_highest_bandwidth;
+
+    public const uint NDIlib_FourCC_video_type_ex_H264_alpha_lowest_bandwidth =
+          ((uint)'a') | (((uint)'2') << 8) | (((uint)'6') << 16) | (((uint)'4') << 24);
+    public const uint NDIlib_FourCC_type_h264_alpha_lowest_bandwidth = NDIlib_FourCC_video_type_ex_H264_alpha_lowest_bandwidth;
+
+    public const uint NDIlib_FourCC_video_type_ex_HEVC_alpha_highest_bandwidth =
+          ((uint)'A') | (((uint)'E') << 8) | (((uint)'V') << 16) | (((uint)'C') << 24);
+    public const uint NDIlib_FourCC_type_HEVC_alpha_highest_bandwidth = NDIlib_FourCC_video_type_ex_HEVC_alpha_highest_bandwidth;
+
+    public const uint NDIlib_FourCC_video_type_ex_HEVC_alpha_lowest_bandwidth =
+          ((uint)'a') | (((uint)'e') << 8) | (((uint)'v') << 16) | (((uint)'c') << 24);
+    public const uint NDIlib_FourCC_type_HEVC_alpha_lowest_bandwidth = NDIlib_FourCC_video_type_ex_HEVC_alpha_lowest_bandwidth;
+
+    public const uint NDIlib_FourCC_video_type_ex_max = 0x7fffffff;
+
+    // FourCC constants for audio frame types
+    public const uint NDIlib_FourCC_audio_type_ex_AAC = 0x00ff;
+    public const uint NDIlib_FourCC_audio_type_ex_OPUS =
+          ((uint)'O') | (((uint)'p') << 8) | (((uint)'u') << 16) | (((uint)'s') << 24);
+    public const uint NDIlib_FourCC_audio_type_ex_max = 0x7fffffff;
+
+    // FourCC constants for compressed packet types
+    public const uint NDIlib_compressed_FourCC_type_H264 =
+          ((uint)'H') | (((uint)'2') << 8) | (((uint)'6') << 16) | (((uint)'4') << 24);
+    public const uint NDIlib_FourCC_type_H264 = NDIlib_compressed_FourCC_type_H264;
+
+    public const uint NDIlib_compressed_FourCC_type_HEVC =
+          ((uint)'H') | (((uint)'E') << 8) | (((uint)'V') << 16) | (((uint)'C') << 24);
+    public const uint NDIlib_FourCC_type_HEVC = NDIlib_compressed_FourCC_type_HEVC;
+
+    public const uint NDIlib_compressed_FourCC_type_AAC = 0x00ff;
+    public const uint NDIlib_FourCC_type_AAC = NDIlib_compressed_FourCC_type_AAC;
+
+    public const uint NDIlib_compressed_FourCC_type_max = 0x7fffffff;
+
+    // Constants for color formats
+    public const uint NDIlib_recv_color_format_ex_compressed = 300;
+    public const uint NDIlib_recv_color_format_compressed = NDIlib_recv_color_format_ex_compressed;
+
+    public const uint NDIlib_recv_color_format_ex_compressed_v1 = 300;
+    public const uint NDIlib_recv_color_format_compressed_v1 = NDIlib_recv_color_format_ex_compressed_v1;
+
+    public const uint NDIlib_recv_color_format_ex_compressed_v2 = 301;
+    public const uint NDIlib_recv_color_format_compressed_v2 = NDIlib_recv_color_format_ex_compressed_v2;
+
+    public const uint NDIlib_recv_color_format_ex_compressed_v2_best = 309;
+    public const uint NDIlib_recv_color_format_compressed_v2_best = NDIlib_recv_color_format_ex_compressed_v2_best;
+
+    public const uint NDIlib_recv_color_format_ex_compressed_v3 = 302;
+    public const uint NDIlib_recv_color_format_compressed_v3 = NDIlib_recv_color_format_ex_compressed_v3;
+
+    public const uint NDIlib_recv_color_format_ex_compressed_v3_best = 310;
+    public const uint NDIlib_recv_color_format_compressed_v3_best = NDIlib_recv_color_format_ex_compressed_v3_best;
+
+    public const uint NDIlib_recv_color_format_ex_compressed_v3_with_audio = 304;
+    public const uint NDIlib_recv_color_format_compressed_v3_with_audio = NDIlib_recv_color_format_ex_compressed_v3_with_audio;
+
+    public const uint NDIlib_recv_color_format_ex_compressed_v4 = 303;
+    public const uint NDIlib_recv_color_format_compressed_v4 = NDIlib_recv_color_format_ex_compressed_v4;
+
+    public const uint NDIlib_recv_color_format_ex_compressed_v4_best = 311;
+    public const uint NDIlib_recv_color_format_compressed_v4_best = NDIlib_recv_color_format_ex_compressed_v4_best;
+
+    public const uint NDIlib_recv_color_format_ex_compressed_v4_with_audio = 305;
+    public const uint NDIlib_recv_color_format_compressed_v4_with_audio = NDIlib_recv_color_format_ex_compressed_v4_with_audio;
+
+    public const uint NDIlib_recv_color_format_ex_compressed_v5 = 307;
+    public const uint NDIlib_recv_color_format_compressed_v5 = NDIlib_recv_color_format_ex_compressed_v5;
+
+    public const uint NDIlib_recv_color_format_ex_compressed_v5_best = 312;
+    public const uint NDIlib_recv_color_format_compressed_v5_best = NDIlib_recv_color_format_ex_compressed_v5_best;
+
+    public const uint NDIlib_recv_color_format_ex_compressed_v5_with_audio = 308;
+    public const uint NDIlib_recv_color_format_compressed_v5_with_audio = NDIlib_recv_color_format_ex_compressed_v5_with_audio;
+
+    public const uint NDIlib_recv_color_format_ex_max = 0x7fffffff;
 }
