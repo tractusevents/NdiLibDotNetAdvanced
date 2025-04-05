@@ -305,7 +305,7 @@ public static unsafe partial class NdiAdvanced
 		}
 		else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
 		{
-			libName = "libndi_adv.dylib";
+			libName = "libndi_advanced.dylib";
 		}
 		else
 		{
