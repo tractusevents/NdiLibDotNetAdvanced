@@ -256,6 +256,8 @@ public static unsafe partial class NdiAdvanced
     public static extern void find_destroy(
         nint p_instance);
 
+    [DllImport(LibraryName, EntryPoint = "NDIlib_recv_request_keyframe", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    public static extern bool recv_request_keyframe(nint recvPtr);
 
     public static NDIlib_source_v2_t[] find_get_current_sources_v2(
         nint pInstance)
