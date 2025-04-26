@@ -222,6 +222,10 @@ public static unsafe partial class NdiAdvanced
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl, EntryPoint = "NDIlib_send_send_video_async_v2", ExactSpelling = true)]
     public static extern void send_send_video_async_v2(nint p_instance, ref video_frame_v2_t p_video_data);
 
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl, EntryPoint = "NDIlib_send_send_video_async_v2", ExactSpelling = true)]
+    public static extern unsafe void send_send_video_async_v2(nint p_instance, video_frame_v2_t* p_video_data);
+
+
     // void NDIlib_send_send_video_async_v2(NDIlib_send_instance_t p_instance, const NDIlib_video_frame_v2_t* p_video_data);
     [DllImport(LibraryName, EntryPoint = "NDIlib_send_send_video_async_v2", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
     public static extern void send_send_video_async_v2_adv(nint pInstance, ref video_frame_v2_t pVideoData);
