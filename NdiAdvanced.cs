@@ -263,6 +263,12 @@ public static unsafe partial class NdiAdvanced
     [DllImport(LibraryName, EntryPoint = "NDIlib_recv_request_keyframe", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
     public static extern bool recv_request_keyframe(nint recvPtr);
 
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl, EntryPoint = "NDIlib_recv_get_no_connections", ExactSpelling = true)]
+    public static extern int recv_get_no_connections(nint p_instance);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl, EntryPoint = "NDIlib_recv_get_web_control", ExactSpelling = true)]
+    public static extern nint recv_get_web_control(nint p_instance);
+
     public static NDIlib_source_v2_t[] find_get_current_sources_v2(
         nint pInstance)
     {
