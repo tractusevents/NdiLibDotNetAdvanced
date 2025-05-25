@@ -1,12 +1,15 @@
 
 using NewTek;
 using System;
+using System.Buffers.Binary;
+using System.Buffers;
 using System.Formats.Asn1;
 using System.Reflection;
 using System.Reflection.Metadata;
 using System.Runtime.InteropServices;
 using System.Security;
 using static NewTek.NDIlib;
+using NewTek.NDI;
 
 namespace Tractus.Ndi;
 
@@ -89,6 +92,11 @@ public static unsafe partial class NdiAdvanced
         nint pInstance,
         ref metadata_frame_t metadataFrame);
 
+    //NDIlib_send_add_connection_metadata
+    [DllImport(LibraryName, EntryPoint = "NDIlib_send_clear_connection_metadata", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    public static extern void send_clear_connection_metadata(
+        nint pInstance);
+
     [DllImport(LibraryName, EntryPoint = "NDIlib_recv_capture_v3", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
     public static extern frame_type_e recv_capture_v3(
         IntPtr p_instance, 
@@ -112,9 +120,6 @@ public static unsafe partial class NdiAdvanced
         out nint p_audio_data,
         out nint p_metadata,
         uint timeout_in_ms);
-
-
-
 
     [DllImport(LibraryName, EntryPoint = "NDIlib_send_capture", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
     public static extern frame_type_e send_capture(
@@ -268,6 +273,71 @@ public static unsafe partial class NdiAdvanced
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl, EntryPoint = "NDIlib_recv_get_web_control", ExactSpelling = true)]
     public static extern nint recv_get_web_control(nint p_instance);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl, EntryPoint = "NDIlib_send_send_metadata", ExactSpelling = true)]
+    public static extern void send_send_metadata(nint p_instance, ref metadata_frame_t p_metadata);
+
+    
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl, EntryPoint = "NDIlib_recv_ptz_store_preset", ExactSpelling = true)]
+    public static extern bool recv_ptz_store_preset(nint p_instance, int preset_no);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl, EntryPoint = "NDIlib_recv_ptz_recall_preset", ExactSpelling = true)]
+    [return: MarshalAs(UnmanagedType.U1)]
+    public static extern bool recv_ptz_recall_preset(nint p_instance, int preset_no, float speed);
+
+
+    /// <summary>
+    /// Sends a metadata frame to any subscribed listeners.
+    /// </summary>
+    /// <param name="senderPtr">The sender pointer.</param>
+    /// <param name="metadata">The metadata XML to be sent. Should be null-terminated.</param>
+    public static unsafe void SendMetadataFrame(nint senderPtr, string metadata)
+    {
+        var metadataXml = metadata;
+        if (metadataXml[metadataXml.Length -1] != '\0')
+        {
+            metadataXml += "\0";
+        }
+
+        var metaFrame = new metadata_frame_t()
+        {
+            p_data = UTF.StringToUtf8(metadataXml),
+            timecode = NDIlib.send_timecode_synthesize,
+        };
+
+        send_send_metadata(senderPtr, ref metaFrame);
+
+        send_free_metadata(senderPtr, ref metaFrame);
+    }
+
+    public static unsafe void AddMetadata(nint senderPtr, string[] metadata, bool replaceAll = false)
+    {
+        if (replaceAll)
+        {
+            send_clear_connection_metadata(senderPtr);
+        }
+
+        foreach(var item in metadata)
+        {
+            var metadataXml = item;
+            if (metadataXml[metadataXml.Length - 1] != '\0')
+            {
+                metadataXml = metadataXml + "\0";
+            }
+
+            var metadataPtr = UTF.StringToUtf8(metadataXml);
+
+            var metaFrame = new metadata_frame_t()
+            {
+                p_data = metadataPtr,
+            };
+
+            send_add_connection_metadata(senderPtr, ref metaFrame);
+
+            Marshal.FreeHGlobal(metadataPtr);
+        }
+    }
+
 
     public static NDIlib_source_v2_t[] find_get_current_sources_v2(
         nint pInstance)
@@ -515,3 +585,318 @@ public static class NDIConstants
 
     public const uint NDIlib_recv_color_format_ex_max = 0x7fffffff;
 }
+public struct NdiKvmMouseClickEvent
+{
+    public MouseButton Button;
+    public bool Clicked;
+}
+public enum MouseButton
+{
+    Left,
+    Middle,
+    Right
+}
+
+public struct NdiKvmMouseMoveEvent
+{
+    public float X;
+    public float Y;
+
+    public readonly void ToScreenCoords(int width, int height, out int x, out int y)
+    {
+        x = (int)(width * this.X);
+        y = (int)(height * this.Y);
+    }
+}
+
+public class KvmEventArgs : EventArgs
+{
+    public NdiKvmMouseClickEvent? MouseClick { get; }
+    public NdiKvmMouseMoveEvent? MouseMove { get; }
+    public byte[] Data { get; }
+    public byte OpCode => this.Data[0];
+    public NdiKvmKeyboardEvent? KeyEvent { get; }
+
+    public KvmEventArgs(NdiKvmKeyboardEvent keyEvent, byte[] data)
+    {
+        this.KeyEvent = keyEvent;
+        this.Data = data;
+    }
+
+    public KvmEventArgs(NdiKvmMouseClickEvent mouseClick, byte[] data)
+    {
+        this.MouseClick = mouseClick;
+        this.Data = data;
+    }
+
+    public KvmEventArgs(NdiKvmMouseMoveEvent? mouseMove, byte[] data)
+    {
+        this.MouseMove = mouseMove;
+        this.Data = data;
+    }
+
+    public KvmEventArgs(byte[] data)
+    {
+        this.Data = data;
+    }
+}
+
+public enum NdiKvmEventType
+{
+    MouseDown,
+    MouseUp,
+    MouseMove,
+    MouseWheel,
+    KeyDown,
+    KeyUp,
+    Clipboard,
+    Unknown
+}
+
+public class NdiKvmParser
+{
+    private const string Prefix = "<ndi_kvm u=\"";
+    private const string Suffix = "\"/>";
+
+    public static void Dump(string base64, string outputPath = null)
+    {
+        byte[] data;
+        try
+        {
+            data = Convert.FromBase64String(base64);
+        }
+        catch (FormatException ex)
+        {
+            Console.WriteLine($"Invalid Base64: {ex.Message}");
+            return;
+        }
+
+        Console.WriteLine($"Decoded {data.Length} bytes:");
+        for (int i = 0; i < data.Length; i++)
+        {
+            byte b = data[i];
+            // hex
+            Console.Write(b.ToString("X2"));
+            Console.Write(" ");
+            // binary
+            Console.WriteLine(Convert.ToString(b, 2).PadLeft(8, '0'));
+        }
+
+        if (!string.IsNullOrEmpty(outputPath))
+        {
+            try
+            {
+                File.WriteAllBytes(outputPath, data);
+                Console.WriteLine($"Wrote {data.Length} bytes to {outputPath}");
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine($"Failed to write file: {e.Message}");
+            }
+        }
+    }
+
+    public static bool TryParse(
+        string xml,
+        out KvmEventArgs? args,
+        out NdiKvmEventType eventType)
+    {
+        args = null;
+        eventType = NdiKvmEventType.Unknown;
+
+        // Quick check and spanify
+        if (!xml.StartsWith(Prefix, StringComparison.Ordinal))
+            return false;
+
+        var span = xml.AsSpan();
+        var start = Prefix.Length;
+        var end = span.LastIndexOf(Suffix, StringComparison.Ordinal);
+        if (end <= start)
+            return false;
+
+        var payloadSpan = span.Slice(start, end - start);
+
+        // Decode Base64 directly into a byte buffer
+        var maxLen = payloadSpan.Length * 3 / 4;
+        var buffer = ArrayPool<byte>.Shared.Rent(maxLen);
+        try
+        {
+            if (!Convert.TryFromBase64Chars(
+                    payloadSpan,
+                    buffer,
+                    out var bytesWritten))
+                return false;
+
+            ReadOnlySpan<byte> data = buffer.AsSpan(0, bytesWritten);
+            var opcode = data[0];
+
+            switch (opcode)
+            {
+                case 0x0C:
+                    {
+                        // Keyboard
+                        var keycode = data[1];
+                        var shift = keycode is 0xE1 or 0xE2;
+                        var ctrl = keycode is 0xE3 or 0xE4;
+                        var down = data.Length > 5 && data[5] == 1;
+
+                        eventType = down
+                            ? NdiKvmEventType.KeyDown
+                            : NdiKvmEventType.KeyUp;
+                        args = new KvmEventArgs(
+                            new NdiKvmKeyboardEvent
+                            {
+                                Keycode = keycode,
+                                ShiftKey = shift,
+                                CtrlKey = ctrl
+                            },
+                            data.ToArray());
+                        return true;
+                    }
+
+                case 0x03:
+                    {
+                        // Mouse move
+                        eventType = NdiKvmEventType.MouseMove;
+                        var x = BinaryPrimitives.ReadSingleLittleEndian(data.Slice(1));
+                        var y = BinaryPrimitives.ReadSingleLittleEndian(data.Slice(5));
+                        args = new KvmEventArgs(
+                            new NdiKvmMouseMoveEvent { X = x, Y = y },
+                            data.ToArray());
+                        return true;
+                    }
+
+                // Mouse down (left=0x04 / right=0x06)
+                case 0x04:
+                case 0x06:
+                    {
+                        eventType = NdiKvmEventType.MouseDown;
+                        var button = opcode == 0x04
+                            ? MouseButton.Left
+                            : MouseButton.Right;
+                        args = new KvmEventArgs(
+                            new NdiKvmMouseClickEvent { Button = button, Clicked = true },
+                            data.ToArray());
+                        return true;
+                    }
+
+                // Mouse up (left=0x07 / right=0x09)
+                case 0x07:
+                case 0x09:
+                    {
+                        eventType = NdiKvmEventType.MouseUp;
+                        var button = opcode == 0x07
+                            ? MouseButton.Left
+                            : MouseButton.Right;
+                        args = new KvmEventArgs(
+                            new NdiKvmMouseClickEvent { Button = button, Clicked = false },
+                            data.ToArray());
+                        return true;
+                    }
+
+                default:
+                    {
+                        eventType = NdiKvmEventType.Unknown;
+                        args = new KvmEventArgs(data.ToArray());
+                        return true;
+                    }
+            }
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(buffer);
+        }
+    }
+
+
+    public static KvmEventArgs? GetEventArgsFromMetadataXml(string metadataXml, out NdiKvmEventType eventType)
+    {
+        if (!metadataXml.StartsWith("<ndi_kvm u="))
+        {
+            eventType = NdiKvmEventType.Unknown;
+            return null;
+        }
+
+        // TODO: A better way to do this.
+        var payload = metadataXml.Replace("<ndi_kvm u=\"", "").Replace("\"/>", "");
+
+        try
+        {
+            var binary = Convert.FromBase64String(payload);
+            Dump(payload);
+            var opcode = binary[0];
+            switch (opcode)
+            {
+                case 0x0C:
+                    // Keyboard event of some sort.
+                    var keycode = binary[1];
+                    var modifierKey = binary[2] == 0xFF;
+
+                    var shiftKey = binary[1] == 0xE1 || binary[1] == 0xE2;
+                    var ctrlKey = binary[1] == 0xE3 || binary[1] == 0xE4;
+
+                    var keydown = binary[5] == 0x1;
+
+                    eventType = keydown ? NdiKvmEventType.KeyDown : NdiKvmEventType.KeyUp;
+                    return new KvmEventArgs(new NdiKvmKeyboardEvent()
+                    {
+                        Keycode = keycode,
+                        ShiftKey = shiftKey,
+                        CtrlKey = ctrlKey,
+                    }, binary);
+                case 0x03:
+                    // Mouse move
+                    eventType = NdiKvmEventType.MouseMove;
+                    var x = BitConverter.ToSingle(binary, 1);
+                    var y = BitConverter.ToSingle(binary, 5);
+                    return new KvmEventArgs(new NdiKvmMouseMoveEvent()
+                    {
+                        X = x,
+                        Y = y
+                    }, binary);
+                case 0x04:
+                    // Left MB down
+                    eventType = NdiKvmEventType.MouseDown;
+                    return new KvmEventArgs(new NdiKvmMouseClickEvent
+                    {
+                        Button = MouseButton.Left,
+                        Clicked = true
+                    }, binary);
+                case 0x07:
+                    // Left MB up
+                    eventType = NdiKvmEventType.MouseUp;
+                    return new KvmEventArgs(new NdiKvmMouseClickEvent
+                    {
+                        Button = MouseButton.Left,
+                        Clicked = false
+                    }, binary);
+                case 0x06:
+                    // Right MB down
+                    eventType = NdiKvmEventType.MouseDown;
+                    return new KvmEventArgs(new NdiKvmMouseClickEvent
+                    {
+                        Button = MouseButton.Right,
+                        Clicked = true
+                    }, binary);
+                case 0x09:
+                    // Right MB up
+                    eventType = NdiKvmEventType.MouseUp;
+                    return new KvmEventArgs(new NdiKvmMouseClickEvent
+                    {
+                        Button = MouseButton.Right,
+                        Clicked = false
+                    }, binary);
+                default:
+                    eventType = NdiKvmEventType.Unknown;
+                    return new KvmEventArgs(binary);
+            }
+
+        }
+        catch (Exception)
+        {
+            eventType = NdiKvmEventType.Unknown;
+            return null;
+        }
+    }
+}
+
