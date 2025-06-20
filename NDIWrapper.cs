@@ -1,17 +1,19 @@
 
 using NewTek;
+using NewTek.NDI;
 using System;
-using System.Buffers.Binary;
 using System.Buffers;
+using System.Buffers.Binary;
 using System.Formats.Asn1;
+using System.Numerics;
 using System.Reflection;
 using System.Reflection.Metadata;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Security;
+using System.Text;
 using static NewTek.NDIlib;
-using NewTek.NDI;
-using System.Numerics;
-using System.Runtime.CompilerServices;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace Tractus.Ndi;
 
@@ -54,6 +56,59 @@ public static unsafe partial class NDIWrapper
     // https://github.com/GabrielFrigo4/SDL-Sharp/blob/3daad4b05c11c1a3987ae24c12c78092be3aa9c3/SDL-Sharp/SDL/SDL.Loader.cs#L11
 
     private const string LibraryName = "NdiAdv";
+
+    [DllImport(LibraryName, EntryPoint = "NDIlib_recv_kvm_send_clipboard_contents", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    public static extern bool recv_kvm_send_clipboard_contents(
+        nint p_instance, [MarshalAs(UnmanagedType.LPUTF8Str)]string p_clipboard_contents);
+
+    [DllImport(LibraryName, EntryPoint = "NDIlib_recv_kvm_send_left_mouse_click", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    public static extern bool recv_kvm_send_left_mouse_click(
+        nint p_instance);
+
+    [DllImport(LibraryName, EntryPoint = "NDIlib_recv_kvm_send_middle_mouse_click", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    public static extern bool recv_kvm_send_middle_mouse_click(
+    nint p_instance);
+
+    [DllImport(LibraryName, EntryPoint = "NDIlib_recv_kvm_send_right_mouse_click", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    public static extern bool recv_kvm_send_right_mouse_click(
+        nint p_instance);
+
+
+    [DllImport(LibraryName, EntryPoint = "NDIlib_recv_kvm_send_left_mouse_release", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    public static extern bool recv_kvm_send_left_mouse_release(
+        nint p_instance);
+
+    [DllImport(LibraryName, EntryPoint = "NDIlib_recv_kvm_send_middle_mouse_release", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    public static extern bool recv_kvm_send_middle_mouse_release(
+    nint p_instance);
+
+    [DllImport(LibraryName, EntryPoint = "NDIlib_recv_kvm_send_right_mouse_release", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    public static extern bool recv_kvm_send_right_mouse_release(
+        nint p_instance);
+
+    [DllImport(LibraryName, EntryPoint = "NDIlib_recv_kvm_send_vertical_mouse_wheel", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    public static extern bool recv_kvm_send_vertical_mouse_wheel(
+    nint p_instance,
+    float no_units);
+
+    [DllImport(LibraryName, EntryPoint = "NDIlib_recv_kvm_send_horizontal_mouse_wheel", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    public static extern bool recv_kvm_send_horizontal_mouse_wheel(
+        nint p_instance,
+        float no_units);
+
+    [DllImport(LibraryName, EntryPoint = "NDIlib_recv_kvm_send_mouse_position", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    public static extern bool recv_kvm_send_mouse_position(
+    nint p_instance,
+        [In, MarshalAs(UnmanagedType.LPArray, SizeConst = 2)]
+        float[] posn);
+
+    [DllImport(LibraryName, EntryPoint = "NDIlib_recv_kvm_send_keyboard_press", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    public static extern bool recv_kvm_send_keyboard_press(
+        nint p_instance, int key_sym_value);
+
+    [DllImport(LibraryName, EntryPoint = "NDIlib_recv_kvm_send_keyboard_release", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    public static extern bool recv_kvm_send_keyboard_release(
+    nint p_instance, int key_sym_value);
 
 
     [DllImport(LibraryName, EntryPoint = "NDIlib_recv_connect", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
@@ -661,6 +716,18 @@ public struct NdiKvmMouseClickEvent
     public MouseButton Button;
     public bool Clicked;
 }
+public struct NdiKvmMouseWheelEvent
+{
+    public MouseWheel Wheel;
+    public float Units;
+}
+
+public enum MouseWheel
+{
+    Horizontal,
+    Vertical
+}
+
 public enum MouseButton
 {
     Left,
@@ -680,34 +747,61 @@ public struct NdiKvmMouseMoveEvent
     }
 }
 
+public struct NdiKvmClipboardEvent
+{
+    public string Clipboard { get; set; }
+}
+
 public class KvmEventArgs : EventArgs
 {
     public NdiKvmMouseClickEvent? MouseClick { get; }
     public NdiKvmMouseMoveEvent? MouseMove { get; }
+    public NdiKvmMouseWheelEvent? MouseWheel { get; }
+    public NdiKvmClipboardEvent? Clipboard { get; }
+
     public byte[] Data { get; }
     public byte OpCode => this.Data[0];
     public NdiKvmKeyboardEvent? KeyEvent { get; }
+    public string MetadataXml { get; }
 
-    public KvmEventArgs(NdiKvmKeyboardEvent keyEvent, byte[] data)
+    public KvmEventArgs(NdiKvmClipboardEvent clipboardEvent, byte[] data, string metadataXml)
+    {
+        this.Clipboard = clipboardEvent;
+        this.Data = data;
+        this.MetadataXml = metadataXml;
+    }
+
+    public KvmEventArgs(NdiKvmMouseWheelEvent wheelEvent, byte[] data, string metadataXml)
+    {
+        this.MouseWheel = wheelEvent;
+        this.Data = data;
+        this.MetadataXml = metadataXml;
+    }
+
+    public KvmEventArgs(NdiKvmKeyboardEvent keyEvent, byte[] data, string metadataXml)
     {
         this.KeyEvent = keyEvent;
         this.Data = data;
+        this.MetadataXml = metadataXml;
     }
 
-    public KvmEventArgs(NdiKvmMouseClickEvent mouseClick, byte[] data)
+    public KvmEventArgs(NdiKvmMouseClickEvent mouseClick, byte[] data, string metadataXml)
     {
+        this.MetadataXml = metadataXml;
         this.MouseClick = mouseClick;
         this.Data = data;
     }
 
-    public KvmEventArgs(NdiKvmMouseMoveEvent? mouseMove, byte[] data)
+    public KvmEventArgs(NdiKvmMouseMoveEvent? mouseMove, byte[] data, string metadataXml)
     {
+        this.MetadataXml = metadataXml;
         this.MouseMove = mouseMove;
         this.Data = data;
     }
 
-    public KvmEventArgs(byte[] data)
+    public KvmEventArgs(byte[] data, string metadataXml)
     {
+        this.MetadataXml = metadataXml;
         this.Data = data;
     }
 }
@@ -717,7 +811,7 @@ public enum NdiKvmEventType
     MouseDown,
     MouseUp,
     MouseMove,
-    MouseWheel,
+    MouseVerticalWheel,
     KeyDown,
     KeyUp,
     Clipboard,
@@ -806,22 +900,20 @@ public class NdiKvmParser
                 case 0x0C:
                     {
                         // Keyboard
-                        var keycode = data[1];
-                        var shift = keycode is 0xE1 or 0xE2;
-                        var ctrl = keycode is 0xE3 or 0xE4;
-                        var down = data.Length > 5 && data[5] == 1;
+                        int keySym = (int)BinaryPrimitives.ReadUInt32LittleEndian(data.Slice(1, 4));
+                        var pressed = data[5] == 1;
 
-                        eventType = down
+                        eventType = pressed
                             ? NdiKvmEventType.KeyDown
                             : NdiKvmEventType.KeyUp;
                         args = new KvmEventArgs(
                             new NdiKvmKeyboardEvent
                             {
-                                Keycode = keycode,
-                                ShiftKey = shift,
-                                CtrlKey = ctrl
+                                KeySym = keySym,
+                                KeyDown = pressed
                             },
-                            data.ToArray());
+                            data.ToArray(),
+                            xml);
                         return true;
                     }
 
@@ -833,7 +925,8 @@ public class NdiKvmParser
                         var y = BinaryPrimitives.ReadSingleLittleEndian(data.Slice(5));
                         args = new KvmEventArgs(
                             new NdiKvmMouseMoveEvent { X = x, Y = y },
-                            data.ToArray());
+                            data.ToArray(),
+                            xml);
                         return true;
                     }
 
@@ -847,7 +940,8 @@ public class NdiKvmParser
                             : MouseButton.Right;
                         args = new KvmEventArgs(
                             new NdiKvmMouseClickEvent { Button = button, Clicked = true },
-                            data.ToArray());
+                            data.ToArray(),
+                            xml);
                         return true;
                     }
 
@@ -861,14 +955,15 @@ public class NdiKvmParser
                             : MouseButton.Right;
                         args = new KvmEventArgs(
                             new NdiKvmMouseClickEvent { Button = button, Clicked = false },
-                            data.ToArray());
+                            data.ToArray(),
+                            xml);
                         return true;
                     }
 
                 default:
                     {
                         eventType = NdiKvmEventType.Unknown;
-                        args = new KvmEventArgs(data.ToArray());
+                        args = new KvmEventArgs(data.ToArray(), xml);
                         return true;
                     }
             }
@@ -894,27 +989,24 @@ public class NdiKvmParser
         try
         {
             var binary = Convert.FromBase64String(payload);
-            Dump(payload);
+            var data = binary.AsSpan<byte>();
             var opcode = binary[0];
             switch (opcode)
             {
                 case 0x0C:
                     // Keyboard event of some sort.
-                    var keycode = binary[1];
-                    var modifierKey = binary[2] == 0xFF;
+                    int keySym = (int)BinaryPrimitives.ReadUInt32LittleEndian(data.Slice(1, 4));
+                    var pressed = data[5] == 1;
 
-                    var shiftKey = binary[1] == 0xE1 || binary[1] == 0xE2;
-                    var ctrlKey = binary[1] == 0xE3 || binary[1] == 0xE4;
-
-                    var keydown = binary[5] == 0x1;
-
-                    eventType = keydown ? NdiKvmEventType.KeyDown : NdiKvmEventType.KeyUp;
+                    eventType = pressed
+                        ? NdiKvmEventType.KeyDown
+                        : NdiKvmEventType.KeyUp;
+                   
                     return new KvmEventArgs(new NdiKvmKeyboardEvent()
                     {
-                        Keycode = keycode,
-                        ShiftKey = shiftKey,
-                        CtrlKey = ctrlKey,
-                    }, binary);
+                        KeySym = keySym,
+                        KeyDown = pressed
+                    }, binary, metadataXml);
                 case 0x03:
                     // Mouse move
                     eventType = NdiKvmEventType.MouseMove;
@@ -924,7 +1016,7 @@ public class NdiKvmParser
                     {
                         X = x,
                         Y = y
-                    }, binary);
+                    }, binary, metadataXml);
                 case 0x04:
                     // Left MB down
                     eventType = NdiKvmEventType.MouseDown;
@@ -932,7 +1024,7 @@ public class NdiKvmParser
                     {
                         Button = MouseButton.Left,
                         Clicked = true
-                    }, binary);
+                    }, binary, metadataXml);
                 case 0x07:
                     // Left MB up
                     eventType = NdiKvmEventType.MouseUp;
@@ -940,7 +1032,7 @@ public class NdiKvmParser
                     {
                         Button = MouseButton.Left,
                         Clicked = false
-                    }, binary);
+                    }, binary, metadataXml);
                 case 0x06:
                     // Right MB down
                     eventType = NdiKvmEventType.MouseDown;
@@ -948,7 +1040,7 @@ public class NdiKvmParser
                     {
                         Button = MouseButton.Right,
                         Clicked = true
-                    }, binary);
+                    }, binary, metadataXml);
                 case 0x09:
                     // Right MB up
                     eventType = NdiKvmEventType.MouseUp;
@@ -956,10 +1048,28 @@ public class NdiKvmParser
                     {
                         Button = MouseButton.Right,
                         Clicked = false
-                    }, binary);
+                    }, binary, metadataXml);
+                case 0x0A:
+                    eventType = NdiKvmEventType.MouseVerticalWheel;
+                    var units = BinaryPrimitives.ReadSingleLittleEndian(data.Slice(1, 4));
+                    return new KvmEventArgs(new NdiKvmMouseWheelEvent()
+                    {
+                        Units = units,
+                        Wheel = MouseWheel.Vertical
+                    }, binary, metadataXml);
+                    break;
+                case 0x0D:
+                    // Clipboard event.
+                    eventType = NdiKvmEventType.Clipboard;
+                    var clipboardContents = Encoding.UTF8.GetString(data.Slice(5));
+                    return new KvmEventArgs(new NdiKvmClipboardEvent()
+                    {
+                        Clipboard = clipboardContents,
+                    }, binary, metadataXml);
                 default:
+                    Dump(payload);
                     eventType = NdiKvmEventType.Unknown;
-                    return new KvmEventArgs(binary);
+                    return new KvmEventArgs(binary, metadataXml);
             }
 
         }

@@ -6,8 +6,6 @@ public class NdiKvmKeyboardEvent
     {
     }
 
-    public byte Keycode { get; set; }
-    public bool ShiftKey { get; set; }
-    public bool CtrlKey { get; set; }
-
+    public int KeySym { get; set; }
+    public bool KeyDown { get; set; }
 }
