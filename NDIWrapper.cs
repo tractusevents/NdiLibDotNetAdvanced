@@ -10,6 +10,8 @@ using System.Runtime.InteropServices;
 using System.Security;
 using static NewTek.NDIlib;
 using NewTek.NDI;
+using System.Numerics;
+using System.Runtime.CompilerServices;
 
 namespace Tractus.Ndi;
 
@@ -25,6 +27,12 @@ public delegate bool CustomAudioAllocatorCallback(nint pOpaque, ref NDIlib.audio
 [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
 public delegate bool CustomAudioFreeCallback(nint pOpaque, ref NDIlib.audio_frame_v3_t audioData);
 
+[StructLayout(LayoutKind.Sequential)]
+public struct NDIlib_recv_advertiser_create_t
+{
+    [MarshalAs(UnmanagedType.LPUTF8Str)]
+    public string p_url_address;
+}
 
 [StructLayout(LayoutKind.Sequential)]
 public struct NDIlib_source_v2_t
@@ -40,12 +48,67 @@ public struct NDIlib_source_v2_t
 }
 
 [SuppressUnmanagedCodeSecurity]
-public static unsafe partial class NdiAdvanced
+public static unsafe partial class NDIWrapper
 {
     // Based on how SDLSharp does things.
     // https://github.com/GabrielFrigo4/SDL-Sharp/blob/3daad4b05c11c1a3987ae24c12c78092be3aa9c3/SDL-Sharp/SDL/SDL.Loader.cs#L11
 
     private const string LibraryName = "NdiAdv";
+
+
+    [DllImport(LibraryName, EntryPoint = "NDIlib_recv_connect", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    public static extern void recv_connect(
+        nint p_instance,
+        ref NDIlib.source_t source);
+
+    [DllImport(LibraryName, EntryPoint = "NDIlib_recv_get_source_name", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    public static extern bool recv_get_source_name(
+        nint p_instance,
+        out nint p_name,
+        uint timeoutMs);
+
+    public static bool GetReceiverSourceName(nint receiverPtr, out string name, uint timeout = 1000)
+    {
+        name = string.Empty;
+        if(!recv_get_source_name(receiverPtr, out var pName, timeout)
+            || pName == nint.Zero)
+        {
+            return false;
+        }
+
+        var toReturn = Marshal.PtrToStringUTF8(pName) ?? string.Empty;
+
+        recv_free_string(receiverPtr, pName);
+
+        name = toReturn;
+        return true;
+    }
+
+    [DllImport(LibraryName, EntryPoint = "NDIlib_recv_advertiser_create", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    public static extern nint recv_advertiser_create(
+        ref NDIlib_recv_advertiser_create_t p_create_settings);
+
+    [DllImport(LibraryName, EntryPoint = "NDIlib_recv_advertiser_destroy", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    public static extern nint recv_advertiser_destroy(
+        nint p_instance);
+
+    [DllImport(LibraryName, EntryPoint = "NDIlib_recv_advertiser_add_receiver", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    public static extern bool recv_advertiser_add_receiver(
+        nint p_instance,
+        nint p_receiver,
+        bool allow_controlling,
+        bool allow_monitoring,
+        [MarshalAs(UnmanagedType.LPUTF8Str)]string p_input_group_name);
+
+    [DllImport(LibraryName, EntryPoint = "NDIlib_recv_advertiser_del_receiver", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    public static extern bool recv_advertiser_del_receiver(
+        nint p_instance,
+        nint p_receiver);
+
+    [DllImport(LibraryName, EntryPoint = "NDIlib_recv_set_tally", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    public static extern bool recv_set_tally(
+        nint p_instance,
+        ref NDIlib.tally_t p_tally);
 
 
     [DllImport(LibraryName, EntryPoint = "NDIlib_recv_set_video_allocator", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
@@ -251,6 +314,11 @@ public static unsafe partial class NdiAdvanced
         nint configData);
 
 
+    [DllImport(LibraryName, EntryPoint = "NDIlib_recv_create_v3", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    public static extern nint recv_create_v3(
+        ref NDIlib.recv_create_v3_t createSettings);
+
+
     [DllImport(LibraryName, EntryPoint = "NDIlib_recv_set_bandwidth", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
     public static extern bool recv_set_bandwidth(
         nint instance,
@@ -360,10 +428,12 @@ public static unsafe partial class NdiAdvanced
         return sources;
     }
 
-    static NdiAdvanced()
-	{
-		NativeLibrary.SetDllImportResolver(typeof(NdiAdvanced).Assembly, ResolveDllImport);
-	}
+    private static bool useAdvanced;
+    public static void Initialize(bool useAdvancedDynLib)
+    {
+        useAdvanced = useAdvancedDynLib;
+        NativeLibrary.SetDllImportResolver(typeof(NDIWrapper).Assembly, ResolveDllImport);
+    }
 
     public static string GetRuntimeIdentifier() 
     {
@@ -420,7 +490,8 @@ public static unsafe partial class NdiAdvanced
 		{
 			if (RuntimeInformation.ProcessArchitecture == Architecture.X64)
 			{
-				libName = "Processing.NDI.Lib.Advanced.x64.dll";
+				libName = 
+                    useAdvanced ? "Processing.NDI.Lib.Advanced.x64.dll" : "Processing.NDI.Lib.x64.dll";
 			}
 			else
 			{
@@ -430,11 +501,11 @@ public static unsafe partial class NdiAdvanced
 		else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
 		{
             useAlternateLoadLogic = true;
-			libName = "libndi_adv.so";
+			libName = useAdvanced ? "libndi_adv.so" : "libndi.so";
 		}
 		else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
 		{
-			libName = "libndi_advanced.dylib";
+			libName = useAdvanced ? "libndi_advanced.dylib" : "libndi.dynlib";
 		}
 		else
 		{
