@@ -1067,7 +1067,6 @@ public class NdiKvmParser
                         Clipboard = clipboardContents,
                     }, binary, metadataXml);
                 default:
-                    Dump(payload);
                     eventType = NdiKvmEventType.Unknown;
                     return new KvmEventArgs(binary, metadataXml);
             }
