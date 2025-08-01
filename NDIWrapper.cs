@@ -312,6 +312,34 @@ public static unsafe partial class NDIWrapper
         return receivers;
     }
 
+    [DllImport(LibraryName, EntryPoint = "NDIlib_recv_ptz_zoom", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    [return: MarshalAsAttribute(UnmanagedType.U1)]
+    public static extern bool recv_ptz_zoom(nint p_instance, float zoom_value);
+
+    [DllImport(LibraryName, EntryPoint = "NDIlib_recv_ptz_zoom_speed", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    [return: MarshalAsAttribute(UnmanagedType.U1)]
+    public static extern bool recv_ptz_zoom_speed(nint p_instance, float zoom_speed);
+
+    [DllImport(LibraryName, EntryPoint = "NDIlib_recv_ptz_pan_tilt", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    [return: MarshalAsAttribute(UnmanagedType.U1)]
+    public static extern bool recv_ptz_pan_tilt(nint p_instance, float pan_value, float tilt_value);
+
+    [DllImport(LibraryName, EntryPoint = "NDIlib_recv_ptz_pan_tilt_speed", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    [return: MarshalAsAttribute(UnmanagedType.U1)]
+    public static extern bool recv_ptz_pan_tilt_speed(nint p_instance, float pan_speed, float tilt_speed);
+
+    [DllImport(LibraryName, EntryPoint = "NDIlib_recv_ptz_auto_focus", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    [return: MarshalAsAttribute(UnmanagedType.U1)]
+    public static extern bool recv_ptz_auto_focus(nint p_instance);
+
+    [DllImport(LibraryName, EntryPoint = "NDIlib_recv_ptz_focus_speed", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    [return: MarshalAsAttribute(UnmanagedType.U1)]
+    public static extern bool recv_ptz_focus_speed(nint p_instance, float focus_speed);
+
+    [DllImport(LibraryName, EntryPoint = "NDIlib_recv_ptz_focus", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    [return: MarshalAsAttribute(UnmanagedType.U1)]
+    public static extern bool recv_ptz_focus(nint p_instance, float focus_value);
+
     [DllImport(LibraryName, EntryPoint = "NDIlib_util_send_send_audio_interleaved_32f", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
     public static extern void util_send_send_audio_interleaved_32f(
         nint p_instance,
@@ -375,6 +403,11 @@ public static unsafe partial class NDIWrapper
     public static extern void recv_connect(
         nint p_instance,
         ref NDIlib.source_t source);
+
+    [DllImport(LibraryName, EntryPoint = "NDIlib_recv_connect", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    public static extern void recv_connect(
+        nint p_instance,
+        nint source);
 
     [DllImport(LibraryName, EntryPoint = "NDIlib_recv_get_source_name", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
     public static extern bool recv_get_source_name(
