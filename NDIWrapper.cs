@@ -176,8 +176,7 @@ public static unsafe partial class NDIWrapper
     public static extern bool recv_listener_is_connected(nint pInstance);
 
     [DllImport(LibraryName, EntryPoint = "NDIlib_recv_listener_get_server_url", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
-    [return: MarshalAs(UnmanagedType.LPUTF8Str)]
-    public static extern string? recv_listener_get_server_url(nint pInstance);
+    public static extern nint recv_listener_get_server_url(nint pInstance);
 
     [DllImport(LibraryName, EntryPoint = "NDIlib_recv_listener_get_receivers", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
     public static extern nint recv_listener_get_receivers(
@@ -190,14 +189,25 @@ public static unsafe partial class NDIWrapper
         uint timeoutMsec);
 
     [DllImport(LibraryName, EntryPoint = "NDIlib_recv_listener_subscribe_events", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
-    public static extern nint recv_listener_subscribe_events(
+    public static extern void recv_listener_subscribe_events(
         nint pInstance,
         [MarshalAs(UnmanagedType.LPUTF8Str)]string p_receiver_uuid);
 
+    [DllImport(LibraryName, EntryPoint = "NDIlib_recv_listener_subscribe_events", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    public static extern void recv_listener_subscribe_events(
+    nint pInstance,
+    nint p_receiver_uuid);
+
+
     [DllImport(LibraryName, EntryPoint = "NDIlib_recv_listener_unsubscribe_events", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
-    public static extern nint recv_listener_unsubscribe_events(
+    public static extern void recv_listener_unsubscribe_events(
     nint pInstance,
     [MarshalAs(UnmanagedType.LPUTF8Str)] string p_receiver_uuid);
+
+    [DllImport(LibraryName, EntryPoint = "NDIlib_recv_listener_unsubscribe_events", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    public static extern void recv_listener_unsubscribe_events(
+        nint pInstance,
+        nint p_receiver_uuid);
 
     [DllImport(LibraryName, EntryPoint = "NDIlib_recv_listener_get_events", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
     public static extern nint recv_listener_get_events(
@@ -215,6 +225,13 @@ public static unsafe partial class NDIWrapper
         nint p_instance,
         [MarshalAs(UnmanagedType.LPUTF8Str)] string p_receiver_uuid,
         [MarshalAs(UnmanagedType.LPUTF8Str)] string p_source_name
+    );
+
+    [DllImport(LibraryName, EntryPoint = "NDIlib_recv_listener_send_connect", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    public static extern bool recv_listener_send_connect(
+    nint p_instance,
+    nint p_receiver_uuid,
+    nint p_source_name
     );
 
 
