@@ -3,6 +3,18 @@ using System;
 namespace Tractus.Ndi;
 public enum NDIlib_FourCC_video_type_ex_e : uint
 {
+    NDIlib_FourCC_video_type_I420 = 808596553,
+    NDIlib_FourCC_video_type_NV12 = 842094158,
+    NDIlib_FourCC_video_type_YV12 = 842094169,
+    NDIlib_FourCC_type_P216 = 909193808,
+    NDIlib_FourCC_type_PA16 = 909197648,
+    NDIlib_FourCC_type_RGBA = 1094862674,
+    NDIlib_FourCC_type_BGRA = 1095911234,
+    NDIlib_FourCC_type_UYVA = 1096178005,
+    NDIlib_FourCC_type_RGBX = 1480738642,
+    NDIlib_FourCC_type_BGRX = 1481787202,
+    NDIlib_FourCC_type_UYVY = 1498831189,
+
     // SpeedHQ formats at the highest bandwidth (4:2:0)
     NDIlib_FourCC_video_type_ex_SHQ0_highest_bandwidth = ((uint)'S' | ((uint)'H' << 8) | ((uint)'Q' << 16) | ((uint)'0' << 24)),
     NDIlib_FourCC_type_SHQ0_highest_bandwidth = NDIlib_FourCC_video_type_ex_SHQ0_highest_bandwidth,

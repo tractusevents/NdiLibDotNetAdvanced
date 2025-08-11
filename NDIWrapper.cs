@@ -1,33 +1,26 @@
 
-using NewTek;
-using NewTek.NDI;
 using System;
 using System.Buffers;
 using System.Buffers.Binary;
-using System.Formats.Asn1;
-using System.Numerics;
 using System.Reflection;
-using System.Reflection.Metadata;
-using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Security;
 using System.Text;
-using static NewTek.NDIlib;
-using static System.Runtime.InteropServices.JavaScript.JSType;
+using System.Text.RegularExpressions;
 
 namespace Tractus.Ndi;
 
 [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-public delegate bool CustomVideoAllocatorCallback(nint pOpaque, ref NDIlib.video_frame_v2_t videoData);
+public delegate bool CustomVideoAllocatorCallback(nint pOpaque, ref video_frame_v2_t videoData);
 
 [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-public delegate bool CustomVideoFreeCallback(nint pOpaque, ref NDIlib.video_frame_v2_t videoData);
+public delegate bool CustomVideoFreeCallback(nint pOpaque, ref video_frame_v2_t videoData);
 
 [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-public delegate bool CustomAudioAllocatorCallback(nint pOpaque, ref NDIlib.audio_frame_v3_t audioData);
+public delegate bool CustomAudioAllocatorCallback(nint pOpaque, ref audio_frame_v3_t audioData);
 
 [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-public delegate bool CustomAudioFreeCallback(nint pOpaque, ref NDIlib.audio_frame_v3_t audioData);
+public delegate bool CustomAudioFreeCallback(nint pOpaque, ref audio_frame_v3_t audioData);
 
 public enum NDIlib_receiver_type_e : int
 {
@@ -149,6 +142,9 @@ public struct NDIlib_recv_listener_event
 [SuppressUnmanagedCodeSecurity]
 public static unsafe partial class NDIWrapper
 {
+    public static Int64 send_timecode_synthesize = Int64.MaxValue;
+    public static Int64 recv_timestamp_undefined = Int64.MaxValue;
+
     // Based on how SDLSharp does things.
     // https://github.com/GabrielFrigo4/SDL-Sharp/blob/3daad4b05c11c1a3987ae24c12c78092be3aa9c3/SDL-Sharp/SDL/SDL.Loader.cs#L11
 
@@ -182,6 +178,11 @@ public static unsafe partial class NDIWrapper
     public static extern nint recv_listener_get_receivers(
         nint pInstance,
         out uint numListeners);
+
+    // find_get_current_sources 
+    [DllImport(LibraryName, EntryPoint = "NDIlib_find_get_current_sources", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern nint find_get_current_sources(nint p_instance, ref UInt32 p_no_sources);
+
 
     [DllImport(LibraryName, EntryPoint = "NDIlib_recv_listener_wait_for_receivers", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
     public static extern nint recv_listener_wait_for_receivers(
@@ -360,7 +361,7 @@ public static unsafe partial class NDIWrapper
     [DllImport(LibraryName, EntryPoint = "NDIlib_util_send_send_audio_interleaved_32f", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
     public static extern void util_send_send_audio_interleaved_32f(
         nint p_instance,
-        ref NDIlib.audio_frame_interleaved_32f_t p_audio_data);
+        ref audio_frame_interleaved_32f_t p_audio_data);
 
     [DllImport(LibraryName, EntryPoint = "NDIlib_recv_kvm_send_clipboard_contents", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
     public static extern bool recv_kvm_send_clipboard_contents(
@@ -419,7 +420,7 @@ public static unsafe partial class NDIWrapper
     [DllImport(LibraryName, EntryPoint = "NDIlib_recv_connect", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
     public static extern void recv_connect(
         nint p_instance,
-        ref NDIlib.source_t source);
+        ref source_t source);
 
     [DllImport(LibraryName, EntryPoint = "NDIlib_recv_connect", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
     public static extern void recv_connect(
@@ -473,7 +474,7 @@ public static unsafe partial class NDIWrapper
     [DllImport(LibraryName, EntryPoint = "NDIlib_recv_set_tally", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
     public static extern bool recv_set_tally(
         nint p_instance,
-        ref NDIlib.tally_t p_tally);
+        ref tally_t p_tally);
 
 
     [DllImport(LibraryName, EntryPoint = "NDIlib_recv_set_video_allocator", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
@@ -572,7 +573,7 @@ public static unsafe partial class NDIWrapper
     [DllImport(LibraryName, EntryPoint = "NDIlib_recv_send_metadata", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
     public static extern bool recv_send_metadata(
         nint pInstance,
-        ref NDIlib.metadata_frame_t metadataFrame);
+        ref metadata_frame_t metadataFrame);
 
     [DllImport(LibraryName, EntryPoint = "NDIlib_recv_destroy", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
     public static extern void recv_destroy(IntPtr p_instance);
@@ -628,12 +629,12 @@ public static unsafe partial class NDIWrapper
 
     [DllImport(LibraryName, EntryPoint = "NDIlib_send_create_v2", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
     public static extern IntPtr send_create_v2(
-        ref NDIlib.send_create_t create, 
+        ref send_create_t create, 
         [MarshalAs(UnmanagedType.LPStr)] string p_config_data);
 
     [DllImport(LibraryName, EntryPoint = "NDIlib_send_create_v2", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
     public static extern IntPtr send_create_v2(
-        ref NDIlib.send_create_t create,
+        ref send_create_t create,
         nint p_config_data);
 
     [DllImport(LibraryName, EntryPoint = "NDIlib_send_destroy", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
@@ -670,24 +671,24 @@ public static unsafe partial class NDIWrapper
 
     [DllImport(LibraryName, EntryPoint = "NDIlib_find_create_v3", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
     public static extern nint find_create_v3(
-        ref NDIlib.find_create_t createSettings,
+        ref find_create_t createSettings,
         nint configData);
 
     [DllImport(LibraryName, EntryPoint = "NDIlib_recv_create_v4", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
     public static extern nint recv_create_v4(
-        ref NDIlib.recv_create_v3_t createSettings,
+        ref recv_create_v3_t createSettings,
         nint configData);
 
 
     [DllImport(LibraryName, EntryPoint = "NDIlib_recv_create_v3", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
     public static extern nint recv_create_v3(
-        ref NDIlib.recv_create_v3_t createSettings);
+        ref recv_create_v3_t createSettings);
 
 
     [DllImport(LibraryName, EntryPoint = "NDIlib_recv_set_bandwidth", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
     public static extern bool recv_set_bandwidth(
         nint instance,
-        NDIlib.recv_bandwidth_e bandwidth);
+        recv_bandwidth_e bandwidth);
 
     [DllImport(LibraryName, EntryPoint = "NDIlib_find_get_current_sources_v2", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
     public static extern nint find_get_current_sources_v2(
@@ -697,6 +698,11 @@ public static unsafe partial class NDIWrapper
     [DllImport(LibraryName, EntryPoint = "NDIlib_find_destroy", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
     public static extern void find_destroy(
         nint p_instance);
+
+    [DllImport(LibraryName, EntryPoint = "NDIlib_find_wait_for_sources", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    [return: MarshalAsAttribute(UnmanagedType.U1)]
+    public static extern bool find_wait_for_sources(IntPtr p_instance, UInt32 timeout_in_ms);
+
 
     [DllImport(LibraryName, EntryPoint = "NDIlib_recv_request_keyframe", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
     public static extern bool recv_request_keyframe(nint recvPtr);
@@ -718,6 +724,9 @@ public static unsafe partial class NDIWrapper
     [return: MarshalAs(UnmanagedType.U1)]
     public static extern bool recv_ptz_recall_preset(nint p_instance, int preset_no, float speed);
 
+    // find_create_v2 
+    [DllImport(LibraryName, EntryPoint = "NDIlib_find_create_v2", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    public static extern nint find_create_v2(ref find_create_t p_create_settings);
 
     /// <summary>
     /// Sends a metadata frame to any subscribed listeners.
@@ -735,7 +744,7 @@ public static unsafe partial class NDIWrapper
         var metaFrame = new metadata_frame_t()
         {
             p_data = UTF.StringToUtf8(metadataXml),
-            timecode = NDIlib.send_timecode_synthesize,
+            timecode = NDIWrapper.send_timecode_synthesize,
         };
 
         send_send_metadata(senderPtr, ref metaFrame);
@@ -1390,3 +1399,785 @@ public class NdiKvmParser
     }
 }
 
+// An enumeration to specify the type of a packet returned by the functions
+public enum frame_type_e
+{
+    frame_type_none = 0,
+    frame_type_video = 1,
+    frame_type_audio = 2,
+    frame_type_metadata = 3,
+    frame_type_error = 4,
+
+    // This indicates that the settings on this input have changed. This value will be returned from one of
+    // the NDIlib_recv_capture functions when the device is known to have new settings, for instance the web
+    // URL has changed or the device is now known to be a PTZ camera.
+    frame_type_status_change = 100,
+
+    // This indicates that the source has changed. This value will be returned from one of the
+    // NDIlib_recv_capture functions when the source that the receiver is connected to has changed.
+    frame_type_source_change = 101,
+
+    // Make sure this is a 32-bit enumeration.
+    frame_type_max = 0x7fffffff
+}
+
+public enum FourCC_type_e
+{
+    FourCC_type_UYVY = 0x59565955,
+
+    // 4:2:0 formats
+    NDIlib_FourCC_video_type_YV12 = 0x32315659,
+    NDIlib_FourCC_video_type_NV12 = 0x3231564E,
+    NDIlib_FourCC_video_type_I420 = 0x30323449,
+
+    // BGRA
+    FourCC_type_BGRA = 0x41524742,
+    FourCC_type_BGRX = 0x58524742,
+
+    // RGBA
+    FourCC_type_RGBA = 0x41424752,
+    FourCC_type_RGBX = 0x58424752,
+
+    // P216/PA16
+    FourCC_type_P216 = 0x36313250,
+    FourCC_type_PA16 = 0x36314150,
+
+    // This is a UYVY buffer followed immediately by an alpha channel buffer.
+    // If the stride of the YCbCr component is "stride", then the alpha channel
+    // starts at image_ptr + yres*stride. The alpha channel stride is stride/2.
+    FourCC_type_UYVA = 0x41565955,
+
+    FourCC_type_ex_H264_highest_bandwidth = 875967048
+}
+
+public enum frame_format_type_e
+{
+    // A progressive frame
+    frame_format_type_progressive = 1,
+
+    // A fielded frame with the field 0 being on the even lines and field 1 being
+    // on the odd lines/
+    frame_format_type_interleaved = 0,
+
+    // Individual fields
+    frame_format_type_field_0 = 2,
+    frame_format_type_field_1 = 3
+}
+
+// FourCC values for audio frames
+public enum FourCC_audio_type_e
+{
+    // Planar 32-bit floating point. Be sure to specify the channel stride.
+    FourCC_audio_type_FLTP = 0x70544c46,
+    FourCC_type_FLTP = FourCC_audio_type_FLTP,
+
+    // Ensure that the size is 32bits
+    FourCC_audio_type_max = 0x7fffffff
+}
+
+// This is a descriptor of a NDI source available on the network.
+[StructLayoutAttribute(LayoutKind.Sequential)]
+public struct source_t
+{
+    // A UTF8 string that provides a user readable name for this source.
+    // This can be used for serialization, etc... and comprises the machine
+    // name and the source name on that machine. In the form
+    //		MACHINE_NAME (NDI_SOURCE_NAME)
+    // If you specify this parameter either as NULL, or an EMPTY string then the
+    // specific ip addres adn port number from below is used.
+    public IntPtr p_ndi_name;
+
+    // A UTF8 string that provides the actual network address and any parameters. 
+    // This is not meant to be application readable and might well change in the future.
+    // This can be nullptr if you do not know it and the API internally will instantiate
+    // a finder that is used to discover it even if it is not yet available on the network.
+    public IntPtr p_url_address;
+}
+
+// This describes a video frame
+[StructLayoutAttribute(LayoutKind.Sequential)]
+public struct video_frame_v2_t
+{
+    // The resolution of this frame
+    public int xres, yres;
+
+    // What FourCC this is with. This can be two values
+    public FourCC_type_e FourCC;
+
+    // What is the frame-rate of this frame.
+    // For instance NTSC is 30000,1001 = 30000/1001 = 29.97fps
+    public int frame_rate_N, frame_rate_D;
+
+    // What is the picture aspect ratio of this frame.
+    // For instance 16.0/9.0 = 1.778 is 16:9 video
+    // 0 means square pixels
+    public float picture_aspect_ratio;
+
+    // Is this a fielded frame, or is it progressive
+    public frame_format_type_e frame_format_type;
+
+    // The timecode of this frame in 100ns intervals
+    public Int64 timecode;
+
+    // The video data itself
+    public IntPtr p_data;
+
+    // The inter line stride of the video data, in bytes.
+    public int line_stride_in_bytes;
+
+    // Per frame metadata for this frame. This is a NULL terminated UTF8 string that should be
+    // in XML format. If you do not want any metadata then you may specify NULL here.
+    public IntPtr p_metadata;
+
+    // This is only valid when receiving a frame and is specified as a 100ns time that was the exact
+    // moment that the frame was submitted by the sending side and is generated by the SDK. If this
+    // value is NDIlib_recv_timestamp_undefined then this value is not available and is NDIlib_recv_timestamp_undefined.
+    public Int64 timestamp;
+}
+
+// This describes an audio frame
+[StructLayoutAttribute(LayoutKind.Sequential)]
+public struct audio_frame_v2_t
+{
+    // The sample-rate of this buffer
+    public int sample_rate;
+
+    // The number of audio channels
+    public int no_channels;
+
+    // The number of audio samples per channel
+    public int no_samples;
+
+    // The timecode of this frame in 100ns intervals
+    public Int64 timecode;
+
+    // The audio data
+    public IntPtr p_data;
+
+    // The inter channel stride of the audio channels, in bytes
+    public int channel_stride_in_bytes;
+
+    // Per frame metadata for this frame. This is a NULL terminated UTF8 string that should be
+    // in XML format. If you do not want any metadata then you may specify NULL here.
+    public IntPtr p_metadata;
+
+    // This is only valid when receiving a frame and is specified as a 100ns time that was the exact
+    // moment that the frame was submitted by the sending side and is generated by the SDK. If this
+    // value is NDIlib_recv_timestamp_undefined then this value is not available and is NDIlib_recv_timestamp_undefined.
+    public Int64 timestamp;
+}
+
+// This describes an audio frame
+[StructLayoutAttribute(LayoutKind.Sequential)]
+public struct audio_frame_v3_t
+{
+    // The sample-rate of this buffer
+    public int sample_rate;
+
+    // The number of audio channels
+    public int no_channels;
+
+    // The number of audio samples per channel
+    public int no_samples;
+
+    // The timecode of this frame in 100ns intervals
+    public Int64 timecode;
+
+    // What FourCC describing the type of data for this frame
+    FourCC_audio_type_e FourCC;
+
+    // The audio data
+    public IntPtr p_data;
+
+    // If the FourCC is not a compressed type and the audio format is planar,
+    // then this will be the stride in bytes for a single channel.
+    // If the FourCC is a compressed type, then this will be the size of the
+    // p_data buffer in bytes.
+    public int channel_stride_in_bytes;
+
+    // Per frame metadata for this frame. This is a NULL terminated UTF8 string that should be
+    // in XML format. If you do not want any metadata then you may specify NULL here.
+    public IntPtr p_metadata;
+
+    // This is only valid when receiving a frame and is specified as a 100ns time that was the exact
+    // moment that the frame was submitted by the sending side and is generated by the SDK. If this
+    // value is NDIlib_recv_timestamp_undefined then this value is not available and is NDIlib_recv_timestamp_undefined.
+    public Int64 timestamp;
+}
+
+// The data description for metadata
+[StructLayoutAttribute(LayoutKind.Sequential)]
+public struct metadata_frame_t
+{
+    // The length of the string in UTF8 characters. This includes the NULL terminating character.
+    // If this is 0, then the length is assume to be the length of a NULL terminated string.
+    public int length;
+
+    // The timecode of this frame in 100ns intervals
+    public Int64 timecode;
+
+    // The metadata as a UTF8 XML string. This is a NULL terminated string.
+    public IntPtr p_data;
+}
+
+// Tally structures
+[StructLayoutAttribute(LayoutKind.Sequential)]
+public struct tally_t
+{
+    // Is this currently on program output
+    [MarshalAsAttribute(UnmanagedType.U1)]
+    public bool on_program;
+
+    // Is this currently on preview output
+    [MarshalAsAttribute(UnmanagedType.U1)]
+    public bool on_preview;
+}
+
+
+
+public class Finder : IDisposable
+{
+    public List<Source> Sources
+    { get; }
+        = new List<Source>();
+
+    public Finder(bool showLocalSources = false, string[] groups = null, string[] extraIps = null)
+    {
+        IntPtr groupsNamePtr = IntPtr.Zero;
+
+        // make a flat list of groups if needed
+        if (groups != null)
+        {
+            StringBuilder flatGroups = new StringBuilder();
+            foreach (string group in groups)
+            {
+                flatGroups.Append(group);
+                if (group != groups.Last())
+                {
+                    flatGroups.Append(',');
+                }
+            }
+
+            groupsNamePtr = UTF.StringToUtf8(flatGroups.ToString());
+        }
+
+        // This is also optional.
+        // The list of additional IP addresses that exist that we should query for 
+        // sources on. For instance, if you want to find the sources on a remote machine
+        // that is not on your local sub-net then you can put a comma seperated list of 
+        // those IP addresses here and those sources will be available locally even though
+        // they are not mDNS discoverable. An example might be "12.0.0.8,13.0.12.8".
+        // When none is specified (IntPtr.Zero) the registry is used.
+        // Create a UTF-8 buffer from our string
+        // Must use Marshal.FreeHGlobal() after use!
+        // IntPtr extraIpsPtr = NDI.Common.StringToUtf8("12.0.0.8,13.0.12.8")
+        IntPtr extraIpsPtr = IntPtr.Zero;
+
+        // make a flat list of ip addresses as comma separated strings
+        if (extraIps != null)
+        {
+            StringBuilder flatIps = new StringBuilder();
+            foreach (string ipStr in extraIps)
+            {
+                flatIps.Append(ipStr);
+                if (ipStr != groups.Last())
+                {
+                    flatIps.Append(',');
+                }
+            }
+
+            extraIpsPtr = UTF.StringToUtf8(flatIps.ToString());
+        }
+
+        // how we want our find to operate
+        find_create_t findDesc = new find_create_t()
+        {
+            p_groups = groupsNamePtr,
+            show_local_sources = showLocalSources,
+            p_extra_ips = extraIpsPtr
+
+        };
+
+        // create our find instance
+        this._findInstancePtr = NDIWrapper.find_create_v2(ref findDesc);
+
+        // free our UTF-8 buffer if we created one
+        if (groupsNamePtr != IntPtr.Zero)
+        {
+            Marshal.FreeHGlobal(groupsNamePtr);
+        }
+
+        if (extraIpsPtr != IntPtr.Zero)
+        {
+            Marshal.FreeHGlobal(extraIpsPtr);
+        }
+
+        // start up a thread to update on
+        this._findThread = new Thread(this.FindThreadProc) { IsBackground = true, Name = "NdiFindThread" };
+        this._findThread.Start();
+    }
+
+    public void Dispose()
+    {
+        this.Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    ~Finder()
+    {
+        this.Dispose(false);
+    }
+
+    protected virtual void Dispose(bool disposing)
+    {
+        if (!this._disposed)
+        {
+            if (disposing)
+            {
+                // tell the thread to exit
+                this._exitThread = true;
+
+                // wait for it to exit
+                if (this._findThread != null)
+                {
+                    this._findThread.Join();
+
+                    this._findThread = null;
+                }
+            }
+
+            if (this._findInstancePtr != IntPtr.Zero)
+            {
+                NDIWrapper.find_destroy(this._findInstancePtr);
+                this._findInstancePtr = IntPtr.Zero;
+            }
+
+            this._disposed = true;
+        }
+    }
+
+    private bool _disposed = false;
+
+    private void FindThreadProc()
+    {
+        // the size of an source_t, for pointer offsets
+        int SourceSizeInBytes = Marshal.SizeOf(typeof(source_t));
+
+        while (!this._exitThread)
+        {
+            // Wait up to 500ms sources to change
+            if (NDIWrapper.find_wait_for_sources(this._findInstancePtr, 500))
+            {
+                uint NumSources = 0;
+                IntPtr SourcesPtr = NDIWrapper.find_get_current_sources(this._findInstancePtr, ref NumSources);
+
+                // convert each unmanaged ptr into a managed source_t
+                for (int i = 0; i < NumSources; i++)
+                {
+                    // source ptr + (index * size of a source)
+                    IntPtr p = IntPtr.Add(SourcesPtr, (i * SourceSizeInBytes));
+
+                    // marshal it to a managed source and assign to our list
+                    source_t src = (source_t)Marshal.PtrToStructure(p, typeof(source_t));
+
+                    // .Net doesn't handle marshaling UTF-8 strings properly
+                    string name = UTF.Utf8ToString(src.p_ndi_name);
+
+                    // Add it to the list if not already in the list.
+                    // We don't have to remove because NDI applications remember any sources seen during each run.
+                    // They might be selected and come back when the connection is restored.
+                    if (!this.Sources.Any(item => item.Name == name))
+                    {
+                        var toAdd = new Source(src);
+                        this.Sources.Add(toAdd);
+                        this.NewNdiSourceDiscovered?.Invoke(toAdd);
+                    }
+                }
+            }
+        }
+    }
+
+    public void ForceRefresh()
+    {
+        this.Sources.Clear();
+    }
+
+    private IntPtr _findInstancePtr = IntPtr.Zero;
+
+    private object _sourceLock = new object();
+
+    // a thread to find on so that the UI isn't dragged down
+    Thread _findThread = null;
+
+    // a way to exit the thread safely
+    bool _exitThread = false;
+
+    public event NewNdiSourceDiscovered NewNdiSourceDiscovered;
+}
+
+public delegate void NewNdiSourceDiscovered(Source source);
+
+public class Source
+{
+    // Really only useful for disconnects or for default values
+    public Source()
+    {
+    }
+
+    // Construct from source_t
+    public Source(source_t source_t)
+    {
+        this.Name = UTF.Utf8ToString(source_t.p_ndi_name);
+    }
+
+    // Construct from strings
+    public Source(string name)
+    {
+        this.Name = name;
+    }
+
+    // Copy constructor.
+    public Source(Source previousSource)
+    {
+        this.Name = previousSource.Name;
+        this._uri = previousSource._uri;
+    }
+
+    // These are purposely 'public get' only because
+    // they should not change during the life of a source.
+    public string Name
+    {
+        get { return this._name; }
+        private set
+        {
+            this._name = value;
+
+            try
+            {
+                // BUG: This strips out the double brackets if the NDI source is a bridged source.
+                int parenIdx = this._name.IndexOf(" (");
+                this._computerName = this._name.Substring(0, parenIdx);
+
+                this._sourceName = Regex.Match(this._name, @"(?<=\().+?(?=\))").Value;
+
+                string uriString = string.Format("ndi://{0}/{1}", this._computerName, System.Net.WebUtility.UrlEncode(this._sourceName));
+
+                if (!Uri.TryCreate(uriString, UriKind.Absolute, out this._uri))
+                    this._uri = null;
+            }
+            catch (Exception)
+            {
+                this._uri = null;
+            }
+
+        }
+    }
+
+    public string ComputerName
+    {
+        get { return this._computerName; }
+    }
+
+    public string SourceName
+    {
+        get { return this._sourceName; }
+    }
+
+    public Uri Uri
+    {
+        get { return this._uri; }
+    }
+
+    public override string ToString()
+    {
+        return this.Name;
+    }
+
+    private string _name = string.Empty;
+    private string _computerName = string.Empty;
+    private string _sourceName = string.Empty;
+    private Uri _uri = null;
+}
+
+// This describes an audio frame
+[StructLayoutAttribute(LayoutKind.Sequential)]
+public struct audio_frame_interleaved_16s_t
+{
+	// The sample-rate of this buffer
+	public int	sample_rate;
+
+	// The number of audio channels
+	public int	no_channels;
+
+	// The number of audio samples per channel
+	public int	no_samples;
+
+	// The timecode of this frame in 100ns intervals
+	public Int64	timecode;
+
+	// The audio reference level in dB. This specifies how many dB above the reference level (+4dBU) is the full range of 16 bit audio.
+	// If you do not understand this and want to just use numbers :
+	//		-	If you are sending audio, specify +0dB. Most common applications produce audio at reference level.
+	//		-	If receiving audio, specify +20dB. This means that the full 16 bit range corresponds to professional level audio with 20dB of headroom. Note that
+	//			if you are writing it into a file it might sound soft because you have 20dB of headroom before clipping.
+	public int	reference_level;
+
+	// The audio data, interleaved 16bpp
+	public IntPtr	p_data;
+}
+
+// This describes an audio frame
+[StructLayoutAttribute(LayoutKind.Sequential)]
+public struct audio_frame_interleaved_32f_t
+{
+	// The sample-rate of this buffer
+	public int	sample_rate;
+
+	// The number of audio channels
+	public int	no_channels;
+
+	// The number of audio samples per channel
+	public int	no_samples;
+
+	// The timecode of this frame in 100ns intervals
+	public Int64	timecode;
+
+	// The audio data, interleaved 32bpp
+	public IntPtr	p_data;
+}
+
+// This describes an audio frame
+[StructLayoutAttribute(LayoutKind.Sequential)]
+public struct audio_frame_interleaved_32s_t
+{
+	// The sample-rate of this buffer
+	public int sample_rate;
+
+	// The number of audio channels
+	public int no_channels;
+
+	// The number of audio samples per channel
+	public int no_samples;
+
+	// The timecode of this frame in 100ns intervals
+	public Int64 timecode;
+
+	// The audio data, interleaved 32bpp (Int32)
+	public IntPtr p_data;
+}
+
+
+[SuppressUnmanagedCodeSecurity]
+public static partial class UTF
+{
+    // This REQUIRES you to use Marshal.FreeHGlobal() on the returned pointer!
+    public static IntPtr StringToUtf8(string managedString)
+    {
+        int len = Encoding.UTF8.GetByteCount(managedString);
+
+        byte[] buffer = new byte[len + 1];
+
+        Encoding.UTF8.GetBytes(managedString, 0, managedString.Length, buffer, 0);
+
+        IntPtr nativeUtf8 = Marshal.AllocHGlobal(buffer.Length);
+
+        Marshal.Copy(buffer, 0, nativeUtf8, buffer.Length);
+
+        return nativeUtf8;
+    }
+
+    // this version will also return the length of the utf8 string
+    // This REQUIRES you to use Marshal.FreeHGlobal() on the returned pointer!
+    public static IntPtr StringToUtf8(string managedString, out int utf8Length)
+    {
+        utf8Length = Encoding.UTF8.GetByteCount(managedString);
+
+        byte[] buffer = new byte[utf8Length + 1];
+
+        Encoding.UTF8.GetBytes(managedString, 0, managedString.Length, buffer, 0);
+
+        IntPtr nativeUtf8 = Marshal.AllocHGlobal(buffer.Length);
+
+        Marshal.Copy(buffer, 0, nativeUtf8, buffer.Length);
+
+        return nativeUtf8;
+    }
+
+    // Length is optional, but recommended
+    // This is all potentially dangerous
+    public static string Utf8ToString(IntPtr nativeUtf8, uint? length = null)
+    {
+        if (nativeUtf8 == IntPtr.Zero)
+            return string.Empty;
+
+        uint len = 0;
+
+        if (length.HasValue)
+        {
+            len = length.Value;
+        }
+        else
+        {
+            // try to find the terminator
+            while (Marshal.ReadByte(nativeUtf8, (int)len) != 0)
+            {
+                ++len;
+            }
+        }
+
+        byte[] buffer = new byte[len];
+
+        Marshal.Copy(nativeUtf8, buffer, 0, buffer.Length);
+
+        return Encoding.UTF8.GetString(buffer);
+    }
+
+} // class NDILib
+
+// The creation structure that is used when you are creating a sender
+[StructLayoutAttribute(LayoutKind.Sequential)]
+public struct send_create_t
+{
+    // The name of the NDI source to create. This is a NULL terminated UTF8 string.
+    public IntPtr p_ndi_name;
+
+    // What groups should this source be part of. NULL means default.
+    public IntPtr p_groups;
+
+    // Do you want audio and video to "clock" themselves. When they are clocked then
+    // by adding video frames, they will be rate limited to match the current frame-rate
+    // that you are submitting at. The same is true for audio. In general if you are submitting
+    // video and audio off a single thread then you should only clock one of them (video is
+    // probably the better of the two to clock off). If you are submtiting audio and video
+    // of separate threads then having both clocked can be useful.
+    [MarshalAsAttribute(UnmanagedType.U1)]
+    public bool clock_video, clock_audio;
+}
+
+[StructLayoutAttribute(LayoutKind.Sequential)]
+public struct find_create_t
+{
+    // Do we want to incluide the list of NDI sources that are running
+    // on the local machine ?
+    // If TRUE then local sources will be visible, if FALSE then they
+    // will not.
+    [MarshalAsAttribute(UnmanagedType.U1)]
+    public bool show_local_sources;
+
+    // Which groups do you want to search in for sources
+    public IntPtr p_groups;
+
+    // The list of additional IP addresses that exist that we should query for
+    // sources on. For instance, if you want to find the sources on a remote machine
+    // that is not on your local sub-net then you can put a comma seperated list of
+    // those IP addresses here and those sources will be available locally even though
+    // they are not mDNS discoverable. An example might be "12.0.0.8,13.0.12.8".
+    // When none is specified the registry is used.
+    // Default = NULL;
+    public IntPtr p_extra_ips;
+}
+
+
+public enum recv_bandwidth_e
+{
+    // Receive metadata.
+    recv_bandwidth_metadata_only = -10,
+
+    // Receive metadata audio.
+    recv_bandwidth_audio_only = 10,
+
+    // Receive metadata audio video at a lower bandwidth and resolution.
+    recv_bandwidth_lowest = 0,
+
+    // Receive metadata audio video at full resolution.
+    recv_bandwidth_highest = 100
+}
+
+public enum recv_color_format_e
+{
+    // No alpha channel: BGRX Alpha channel: BGRA
+    recv_color_format_BGRX_BGRA = 0,
+
+    // No alpha channel: UYVY Alpha channel: BGRA
+    recv_color_format_UYVY_BGRA = 1,
+
+    // No alpha channel: RGBX Alpha channel: RGBA
+    recv_color_format_RGBX_RGBA = 2,
+
+    // No alpha channel: UYVY Alpha channel: RGBA
+    recv_color_format_UYVY_RGBA = 3,
+
+    // On Windows there are some APIs that require bottom to top images in RGBA format. Specifying
+    // this format will return images in this format. The image data pointer will still point to the
+    // "top" of the image, althought he stride will be negative. You can get the "bottom" line of the image
+    // using : video_data.p_data + (video_data.yres - 1)*video_data.line_stride_in_bytes
+    recv_color_format_BGRX_BGRA_flipped = 200,
+
+    // Read the SDK documentation to understand the pros and cons of this format.
+    recv_color_format_fastest = 100,
+
+    NDIlib_recv_color_format_best = 101,
+
+    // Legacy definitions for backwards compatibility
+    recv_color_format_e_BGRX_BGRA = recv_color_format_BGRX_BGRA,
+    recv_color_format_e_UYVY_BGRA = recv_color_format_UYVY_BGRA,
+    recv_color_format_e_RGBX_RGBA = recv_color_format_RGBX_RGBA,
+    recv_color_format_e_UYVY_RGBA = recv_color_format_UYVY_RGBA
+}
+
+// The creation structure that is used when you are creating a receiver
+[StructLayoutAttribute(LayoutKind.Sequential)]
+public struct recv_create_v3_t
+{
+    // The source that you wish to connect to.
+    public source_t source_to_connect_to;
+
+    // Your preference of color space. See above.
+    public recv_color_format_e color_format;
+
+    // The bandwidth setting that you wish to use for this video source. Bandwidth
+    // controlled by changing both the compression level and the resolution of the source.
+    // A good use for low bandwidth is working on WIFI connections.
+    public recv_bandwidth_e bandwidth;
+
+    // When this flag is FALSE, all video that you receive will be progressive. For sources
+    // that provide fields, this is de-interlaced on the receiving side (because we cannot change
+    // what the up-stream source was actually rendering. This is provided as a convenience to
+    // down-stream sources that do not wish to understand fielded video. There is almost no
+    // performance impact of using this function.
+    [MarshalAsAttribute(UnmanagedType.U1)]
+    public bool allow_video_fields;
+
+    // The name of the NDI receiver to create. This is a NULL terminated UTF8 string and should be
+    // the name of receive channel that you have. This is in many ways symettric with the name of
+    // senders, so this might be "Channel 1" on your system.
+    public IntPtr p_ndi_recv_name;
+}
+
+// This allows you determine the current performance levels of the receiving to be able to detect whether frames have been dropped
+[StructLayoutAttribute(LayoutKind.Sequential)]
+public struct recv_performance_t
+{
+    // The number of video frames
+    public Int64 video_frames;
+
+    // The number of audio frames
+    public Int64 audio_frames;
+
+    // The number of metadata frames
+    public Int64 metadata_frames;
+}
+
+// Get the current queue depths
+[StructLayoutAttribute(LayoutKind.Sequential)]
+public struct recv_queue_t
+{
+    // The number of video frames
+    public int video_frames;
+
+    // The number of audio frames
+    public int audio_frames;
+
+    // The number of metadata frames
+    public int metadata_frames;
+}
