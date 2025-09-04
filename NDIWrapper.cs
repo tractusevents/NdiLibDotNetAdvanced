@@ -803,8 +803,11 @@ public static unsafe partial class NDIWrapper
     }
 
     private static bool useAdvanced;
-    public static void Initialize(bool useAdvancedDynLib)
+    private static string? exactLookupPath;
+
+    public static void Initialize(bool useAdvancedDynLib, string? exactLibLookupPath = null)
     {
+        exactLookupPath = exactLibLookupPath;
         useAdvanced = useAdvancedDynLib;
         NativeLibrary.SetDllImportResolver(typeof(NDIWrapper).Assembly, ResolveDllImport);
     }
@@ -857,6 +860,13 @@ public static unsafe partial class NDIWrapper
 
 	private static nint ResolveDllImport(string libraryName, Assembly assembly, DllImportSearchPath? searchPath)
 	{
+        if (!string.IsNullOrEmpty(exactLookupPath))
+        {
+            var forcedHandle = nint.Zero;
+            NativeLibrary.TryLoad(exactLookupPath, out forcedHandle);
+            return forcedHandle;
+        }
+
 		var libName = string.Empty;
         var useAlternateLoadLogic = false;
 

@@ -3,6 +3,29 @@ using System;
 namespace Tractus.Ndi;
 public enum NDIlib_recv_color_format_ex_e
 {
+    // No alpha channel: BGRX Alpha channel: BGRA
+    recv_color_format_BGRX_BGRA = 0,
+
+    // No alpha channel: UYVY Alpha channel: BGRA
+    recv_color_format_UYVY_BGRA = 1,
+
+    // No alpha channel: RGBX Alpha channel: RGBA
+    recv_color_format_RGBX_RGBA = 2,
+
+    // No alpha channel: UYVY Alpha channel: RGBA
+    recv_color_format_UYVY_RGBA = 3,
+
+    // On Windows there are some APIs that require bottom to top images in RGBA format. Specifying
+    // this format will return images in this format. The image data pointer will still point to the
+    // "top" of the image, althought he stride will be negative. You can get the "bottom" line of the image
+    // using : video_data.p_data + (video_data.yres - 1)*video_data.line_stride_in_bytes
+    recv_color_format_BGRX_BGRA_flipped = 200,
+
+    // Read the SDK documentation to understand the pros and cons of this format.
+    recv_color_format_fastest = 100,
+
+    recv_color_format_best = 101,
+
     // Request that compressed video data is the desired format.
     NDIlib_recv_color_format_ex_compressed = 300,
     NDIlib_recv_color_format_compressed = NDIlib_recv_color_format_ex_compressed,
