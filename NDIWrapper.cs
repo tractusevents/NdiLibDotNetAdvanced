@@ -67,6 +67,12 @@ public struct NDIlib_receiver_t
     public bool events_subscribed;
 }
 
+[StructLayout(LayoutKind.Sequential)]
+public struct routing_create_t
+{
+    public nint p_ndi_name;
+    public nint p_groups;
+}
 
 public struct NDIlib_receiver_t_wrapped
 {
@@ -99,14 +105,14 @@ public struct NDIlib_receiver_t_wrapped
 
 
 [StructLayout(LayoutKind.Sequential)]
-public struct NDIlib_recv_advertiser_create_t
+public struct recv_advertiser_create_t
 {
     [MarshalAs(UnmanagedType.LPUTF8Str)]
     public string p_url_address;
 }
 
 [StructLayout(LayoutKind.Sequential)]
-public struct NDIlib_source_v2_t
+public struct source_v2_t
 {
     [MarshalAs(UnmanagedType.LPUTF8Str)]
     public string p_ndi_name;
@@ -152,7 +158,7 @@ public static unsafe partial class NDIWrapper
 
     [DllImport(LibraryName, EntryPoint = "NDIlib_recv_advertiser_create_ex", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
     public static extern nint recv_advertiser_create_ex(
-        ref NDIlib_recv_advertiser_create_t createSettings,
+        ref recv_advertiser_create_t createSettings,
         [MarshalAs(UnmanagedType.LPUTF8Str)] string configData);
 
     [DllImport(LibraryName, EntryPoint = "NDIlib_recv_listener_create_ex", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
@@ -181,8 +187,12 @@ public static unsafe partial class NDIWrapper
 
     // find_get_current_sources 
     [DllImport(LibraryName, EntryPoint = "NDIlib_find_get_current_sources", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
-    internal static extern nint find_get_current_sources(nint p_instance, ref UInt32 p_no_sources);
+    internal static extern nint find_get_current_sources(nint p_instance, ref uint p_no_sources);
 
+    // NDIlib_find_get_current_sources_v2
+    // find_get_current_sources 
+    [DllImport(LibraryName, EntryPoint = "NDIlib_find_get_current_sources_v2", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    internal static extern nint find_get_current_sources_v2(nint p_instance, out uint p_no_sources);
 
     [DllImport(LibraryName, EntryPoint = "NDIlib_recv_listener_wait_for_receivers", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
     public static extern nint recv_listener_wait_for_receivers(
@@ -242,8 +252,8 @@ public static unsafe partial class NDIWrapper
         out uint numEvents
 )
     {
-        IntPtr pEvents = recv_listener_get_events(instance, out numEvents, timeoutInMilliseconds);
-        if (pEvents == IntPtr.Zero || numEvents == 0)
+        nint pEvents = recv_listener_get_events(instance, out numEvents, timeoutInMilliseconds);
+        if (pEvents == nint.Zero || numEvents == 0)
         {
             numEvents = 0;
             return Array.Empty<NDIlib_recv_listener_event>();
@@ -253,7 +263,7 @@ public static unsafe partial class NDIWrapper
         var managed = new NDIlib_recv_listener_event[numEvents];
         for (uint i = 0; i < numEvents; i++)
         {
-            var ptr = IntPtr.Add(pEvents, (int)(i * structSize));
+            var ptr = nint.Add(pEvents, (int)(i * structSize));
             managed[i] = Marshal.PtrToStructure<NDIlib_recv_listener_event>(ptr);
         }
 
@@ -269,7 +279,7 @@ public static unsafe partial class NDIWrapper
         )
     {
         var pArray = recv_listener_get_receivers(p_instance, out numReceivers);
-        if (pArray == IntPtr.Zero || numReceivers == 0)
+        if (pArray == nint.Zero || numReceivers == 0)
         {
             return Array.Empty<NDIlib_receiver_t_wrapped>();
         }
@@ -278,7 +288,7 @@ public static unsafe partial class NDIWrapper
         var receivers = new NDIlib_receiver_t_wrapped[numReceivers];
         for (uint i = 0; i < numReceivers; i++)
         {
-            IntPtr pElem = IntPtr.Add(pArray, (int)(i * size));
+            nint pElem = nint.Add(pArray, (int)(i * size));
             var toWrap = Marshal.PtrToStructure<NDIlib_receiver_t>(pElem);
 
             var toAdd = new NDIlib_receiver_t_wrapped
@@ -452,7 +462,7 @@ public static unsafe partial class NDIWrapper
 
     [DllImport(LibraryName, EntryPoint = "NDIlib_recv_advertiser_create", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
     public static extern nint recv_advertiser_create(
-        ref NDIlib_recv_advertiser_create_t p_create_settings);
+        ref recv_advertiser_create_t p_create_settings);
 
     [DllImport(LibraryName, EntryPoint = "NDIlib_recv_advertiser_destroy", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
     public static extern nint recv_advertiser_destroy(
@@ -493,27 +503,27 @@ public static unsafe partial class NDIWrapper
 
 
     [DllImport(LibraryName, EntryPoint = "NDIlib_recv_free_video_v2", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
-    public static extern void recv_free_video_v2(IntPtr p_instance, ref video_frame_v2_t p_video_data);
+    public static extern void recv_free_video_v2(nint p_instance, ref video_frame_v2_t p_video_data);
     [DllImport(LibraryName, EntryPoint = "NDIlib_recv_free_audio_v3", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
-    public static extern void recv_free_audio_v3(IntPtr p_instance, ref audio_frame_v3_t p_audio_data);
+    public static extern void recv_free_audio_v3(nint p_instance, ref audio_frame_v3_t p_audio_data);
     [DllImport(LibraryName, EntryPoint = "NDIlib_recv_free_metadata", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
-    public static extern void recv_free_metadata(IntPtr p_instance, ref metadata_frame_t p_metadata);
+    public static extern void recv_free_metadata(nint p_instance, ref metadata_frame_t p_metadata);
 
     [DllImport(LibraryName, EntryPoint = "NDIlib_recv_free_video_v2", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
-    public static unsafe extern void recv_free_video_v2(IntPtr p_instance, video_frame_v2_t* p_video_data);
+    public static unsafe extern void recv_free_video_v2(nint p_instance, video_frame_v2_t* p_video_data);
     [DllImport(LibraryName, EntryPoint = "NDIlib_recv_free_audio_v3", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
-    public static unsafe extern void recv_free_audio_v3(IntPtr p_instance, audio_frame_v3_t* p_audio_data);
+    public static unsafe extern void recv_free_audio_v3(nint p_instance, audio_frame_v3_t* p_audio_data);
     [DllImport(LibraryName, EntryPoint = "NDIlib_recv_free_metadata", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
-    public static unsafe extern void recv_free_metadata(IntPtr p_instance, metadata_frame_t* p_metadata);
+    public static unsafe extern void recv_free_metadata(nint p_instance, metadata_frame_t* p_metadata);
 
 
 
 
     [DllImport(LibraryName, EntryPoint = "NDIlib_recv_free_string", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
-    public static extern void recv_free_string(IntPtr p_instance, IntPtr p_string);
+    public static extern void recv_free_string(nint p_instance, nint p_string);
 
     [DllImport(LibraryName, EntryPoint = "NDIlib_recv_ptz_is_supported", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
-    public static extern bool recv_ptz_is_supported(IntPtr p_instance);
+    public static extern bool recv_ptz_is_supported(nint p_instance);
 
     //NDIlib_send_add_connection_metadata
     [DllImport(LibraryName, EntryPoint = "NDIlib_send_add_connection_metadata", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
@@ -528,7 +538,7 @@ public static unsafe partial class NDIWrapper
 
     [DllImport(LibraryName, EntryPoint = "NDIlib_recv_capture_v3", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
     public static extern frame_type_e recv_capture_v3(
-        IntPtr p_instance, 
+        nint p_instance, 
         ref video_frame_v2_t p_video_data, 
         ref audio_frame_v3_t p_audio_data, 
         ref metadata_frame_t p_metadata, 
@@ -536,7 +546,7 @@ public static unsafe partial class NDIWrapper
 
     [DllImport(LibraryName, EntryPoint = "NDIlib_recv_capture_v3", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
     public static unsafe extern frame_type_e recv_capture_v3(
-        IntPtr p_instance,
+        nint p_instance,
         video_frame_v2_t* p_video_data,
         audio_frame_v3_t* p_audio_data,
         metadata_frame_t* p_metadata,
@@ -556,15 +566,27 @@ public static unsafe partial class NDIWrapper
         ref metadata_frame_t pMetadata,
         uint timeoutInMs);
 
+
+    [DllImport(LibraryName, EntryPoint = "NDIlib_send_capture", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    public static extern unsafe frame_type_e send_capture(
+        nint pInstance,
+        metadata_frame_t* pMetadata,
+        uint timeoutInMs);
+
     [DllImport(LibraryName, EntryPoint = "NDIlib_send_free_metadata", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
     public static extern void send_free_metadata(
         nint pInstance,
         ref metadata_frame_t pMetadata);
 
+    [DllImport(LibraryName, EntryPoint = "NDIlib_send_free_metadata", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    public static extern void send_free_metadata(
+        nint pInstance,
+        metadata_frame_t* pMetadata);
+
     // recv_capture_v3 
     [DllImport(LibraryName, EntryPoint = "NDIlib_recv_capture_v3", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
     public unsafe static extern frame_type_e recv_capture_v3(
-        IntPtr p_instance,
+        nint p_instance,
         video_frame_v2_t* p_video_data,
         audio_frame_v3_t* p_audio_data,
         metadata_frame_t* p_metadata,
@@ -576,44 +598,44 @@ public static unsafe partial class NDIWrapper
         ref metadata_frame_t metadataFrame);
 
     [DllImport(LibraryName, EntryPoint = "NDIlib_recv_destroy", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
-    public static extern void recv_destroy(IntPtr p_instance);
+    public static extern void recv_destroy(nint p_instance);
 
 
     // framesync_create_v2 
     [DllImport(LibraryName, EntryPoint = "NDIlib_framesync_create", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
-    public static extern IntPtr framesync_create(IntPtr p_receiver);
+    public static extern nint framesync_create(nint p_receiver);
 
     // framesync_destroy 
     [DllImport(LibraryName, EntryPoint = "NDIlib_framesync_destroy", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
-    public static extern void framesync_destroy(IntPtr p_instance);
+    public static extern void framesync_destroy(nint p_instance);
 
     // framesync_capture_audio 
     [DllImport(LibraryName, EntryPoint = "NDIlib_framesync_capture_audio", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
-    public static extern IntPtr framesync_capture_audio(IntPtr p_instance, ref audio_frame_v2_t p_audio_data, int sample_rate, int no_channels, int no_samples);
+    public static extern nint framesync_capture_audio(nint p_instance, ref audio_frame_v2_t p_audio_data, int sample_rate, int no_channels, int no_samples);
 
     // framesync_capture_audio_v2
     [DllImport(LibraryName, EntryPoint = "NDIlib_framesync_capture_audio_v2", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
-    public static extern IntPtr framesync_capture_audio_v2(IntPtr p_instance, ref audio_frame_v3_t p_audio_data, int sample_rate, int no_channels, int no_samples);
+    public static extern nint framesync_capture_audio_v2(nint p_instance, ref audio_frame_v3_t p_audio_data, int sample_rate, int no_channels, int no_samples);
 
     // framesync_free_audio 
     [DllImport(LibraryName, EntryPoint = "NDIlib_framesync_free_audio", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
-    public static extern void framesync_free_audio(IntPtr p_instance, ref audio_frame_v2_t p_audio_data);
+    public static extern void framesync_free_audio(nint p_instance, ref audio_frame_v2_t p_audio_data);
 
     // framesync_free_audio_v2
     [DllImport(LibraryName, EntryPoint = "NDIlib_framesync_free_audio_v2", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
-    public static extern void framesync_free_audio_v2(IntPtr p_instance, ref audio_frame_v3_t p_audio_data);
+    public static extern void framesync_free_audio_v2(nint p_instance, ref audio_frame_v3_t p_audio_data);
 
     // framesync_audio_queue_depth 
     [DllImport(LibraryName, EntryPoint = "NDIlib_framesync_audio_queue_depth", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
-    public static extern int framesync_audio_queue_depth(IntPtr p_instance);
+    public static extern int framesync_audio_queue_depth(nint p_instance);
 
     // framesync_capture_video 
     [DllImport(LibraryName, EntryPoint = "NDIlib_framesync_capture_video", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
-    public static extern void framesync_capture_video(IntPtr p_instance, ref video_frame_v2_t p_video_data, frame_format_type_e field_type);
+    public static extern void framesync_capture_video(nint p_instance, ref video_frame_v2_t p_video_data, frame_format_type_e field_type);
 
     // framesync_free_video 
     [DllImport(LibraryName, EntryPoint = "NDIlib_framesync_free_video", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
-    public static extern void framesync_free_video(IntPtr p_instance, ref video_frame_v2_t p_video_data);
+    public static extern void framesync_free_video(nint p_instance, ref video_frame_v2_t p_video_data);
 
 
     [DllImport(LibraryName, EntryPoint = "NDIlib_recv_kvm_is_supported", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
@@ -628,17 +650,17 @@ public static unsafe partial class NDIWrapper
 
 
     [DllImport(LibraryName, EntryPoint = "NDIlib_send_create_v2", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
-    public static extern IntPtr send_create_v2(
+    public static extern nint send_create_v2(
         ref send_create_t create, 
         [MarshalAs(UnmanagedType.LPStr)] string p_config_data);
 
     [DllImport(LibraryName, EntryPoint = "NDIlib_send_create_v2", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
-    public static extern IntPtr send_create_v2(
+    public static extern nint send_create_v2(
         ref send_create_t create,
         nint p_config_data);
 
     [DllImport(LibraryName, EntryPoint = "NDIlib_send_destroy", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
-    public static extern void send_destroy(IntPtr p_instance);
+    public static extern void send_destroy(nint p_instance);
 
     // send_send_video_v2 
     [DllImport(LibraryName, EntryPoint = "NDIlib_send_send_video_v2", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
@@ -652,6 +674,15 @@ public static unsafe partial class NDIWrapper
         nint p_instance,
         video_frame_v2_t* p_video_data);
 
+    [DllImport(LibraryName, EntryPoint = "NDIlib_send_set_video_async_completion", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    public static unsafe extern void send_set_video_async_completion(
+        nint p_instance,
+        nint p_opaque,
+        VideoSendAsyncCompletion callback);
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    public unsafe delegate void VideoSendAsyncCompletion(nint p_opaque, in video_frame_v2_t p_video);
+
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl, EntryPoint = "NDIlib_send_send_video_async_v2", ExactSpelling = true)]
     public static extern void send_send_video_async_v2(nint p_instance, ref video_frame_v2_t p_video_data);
@@ -664,9 +695,16 @@ public static unsafe partial class NDIWrapper
     [DllImport(LibraryName, EntryPoint = "NDIlib_send_send_video_async_v2", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
     public static extern void send_send_video_async_v2_adv(nint pInstance, ref video_frame_v2_t pVideoData);
 
+    // void NDIlib_send_send_video_async_v2(NDIlib_send_instance_t p_instance, const NDIlib_video_frame_v2_t* p_video_data);
+    [DllImport(LibraryName, EntryPoint = "NDIlib_send_send_video_async_v2", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    public static extern void send_send_video_async_v2_adv(nint pInstance, video_frame_v2_t *pVideoData);
+
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl, EntryPoint = "NDIlib_send_send_audio_v3", ExactSpelling = true)]
     public static extern void send_send_audio_v3(nint p_instance, ref audio_frame_v3_t p_audio_data);
+    
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl, EntryPoint = "NDIlib_send_send_audio_v3", ExactSpelling = true)]
+    public static extern unsafe void send_send_audio_v3(nint p_instance, audio_frame_v3_t *p_audio_data);
 
 
     [DllImport(LibraryName, EntryPoint = "NDIlib_find_create_v3", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
@@ -690,18 +728,13 @@ public static unsafe partial class NDIWrapper
         nint instance,
         recv_bandwidth_e bandwidth);
 
-    [DllImport(LibraryName, EntryPoint = "NDIlib_find_get_current_sources_v2", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
-    public static extern nint find_get_current_sources_v2(
-        nint p_instance,
-        out uint p_no_sources);
-
     [DllImport(LibraryName, EntryPoint = "NDIlib_find_destroy", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
     public static extern void find_destroy(
         nint p_instance);
 
     [DllImport(LibraryName, EntryPoint = "NDIlib_find_wait_for_sources", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
     [return: MarshalAsAttribute(UnmanagedType.U1)]
-    public static extern bool find_wait_for_sources(IntPtr p_instance, UInt32 timeout_in_ms);
+    public static extern bool find_wait_for_sources(nint p_instance, UInt32 timeout_in_ms);
 
 
     [DllImport(LibraryName, EntryPoint = "NDIlib_recv_request_keyframe", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
@@ -727,6 +760,98 @@ public static unsafe partial class NDIWrapper
     // find_create_v2 
     [DllImport(LibraryName, EntryPoint = "NDIlib_find_create_v2", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
     public static extern nint find_create_v2(ref find_create_t p_create_settings);
+
+    // find_create_v2 
+    [DllImport(LibraryName, EntryPoint = "NDIlib_genlock_create", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    public static extern nint genlock_create(ref source_t p_src_settings, nint configData);
+
+    [DllImport(LibraryName, EntryPoint = "NDIlib_genlock_create", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    public static extern unsafe nint genlock_create(source_t* p_src_settings, nint configData);
+
+
+    [DllImport(LibraryName, EntryPoint = "NDIlib_genlock_destroy", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    public static extern void genlock_destroy(nint p_instance);
+
+    [DllImport(LibraryName, EntryPoint = "NDIlib_genlock_connect", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    public static extern void genlock_connect(nint p_instance, ref source_t p_src_settings);
+    [DllImport(LibraryName, EntryPoint = "NDIlib_genlock_connect", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    public static extern unsafe void genlock_connect(nint p_instance, source_t* p_src_settings);
+
+    [DllImport(LibraryName, EntryPoint = "NDIlib_genlock_is_active", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    public static extern bool genlock_is_active(nint p_instance);
+
+
+    [DllImport(LibraryName, EntryPoint = "NDIlib_genlock_wait_video", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    public static extern bool genlock_wait_video(nint p_instance, ref video_frame_v2_t p_video_data);
+
+    [DllImport(LibraryName, EntryPoint = "NDIlib_genlock_wait_audio", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    public static extern bool genlock_wait_audio(nint p_instance, ref audio_frame_v3_t p_audio_data);
+
+    [DllImport(LibraryName, EntryPoint = "NDIlib_genlock_wait_video", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    public static extern unsafe bool genlock_wait_video(nint p_instance, video_frame_v2_t* p_video_data);
+
+    [DllImport(LibraryName, EntryPoint = "NDIlib_genlock_wait_audio", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    public static extern unsafe bool genlock_wait_audio(nint p_instance, audio_frame_v3_t* p_audio_data);
+
+
+    [DllImport(LibraryName, EntryPoint = "NDIlib_send_get_source_name", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    public static extern nint send_get_source_name(nint p_instance);
+
+
+    [DllImport(LibraryName, EntryPoint = "NDIlib_routing_create", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    public static extern nint routing_create(ref routing_create_t p_create_settings);
+
+    [DllImport(LibraryName, EntryPoint = "NDIlib_routing_create", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    public static extern unsafe nint routing_create(routing_create_t* p_create_settings);
+
+    [DllImport(LibraryName, EntryPoint = "NDIlib_routing_destroy", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    public static extern unsafe void routing_destroy(nint p_instance);
+
+    [DllImport(LibraryName, EntryPoint = "NDIlib_routing_clear", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    public static extern unsafe bool routing_clear(nint p_instance);
+
+    [DllImport(LibraryName, EntryPoint = "NDIlib_routing_change", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    public static extern bool routing_change(nint p_instance, ref source_t source);
+
+    [DllImport(LibraryName, EntryPoint = "NDIlib_routing_change", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    public static extern unsafe bool routing_change(nint p_instance, source_t* source);
+
+    [DllImport(LibraryName, EntryPoint = "NDIlib_routing_get_no_connections", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    public static extern int routing_get_no_connections(nint p_instance);
+
+    [DllImport(LibraryName, EntryPoint = "NDIlib_routing_get_source_name", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    public static extern nint routing_get_source_name(nint p_instance);
+
+
+    [DllImport(LibraryName, EntryPoint = "NDIlib_routing_create_v2", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    public static extern nint routing_create_v2(nint p_instance, nint p_config_data);
+
+    [DllImport(LibraryName, EntryPoint = "NDIlib_routing_add_connection_metadata", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    public static extern void routing_add_connection_metadata(nint p_instance, ref metadata_frame_t p_metadata);
+
+    [DllImport(LibraryName, EntryPoint = "NDIlib_routing_add_connection_metadata", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    public static extern unsafe void routing_add_connection_metadata(nint p_instance, metadata_frame_t* p_metadata);
+
+    [DllImport(LibraryName, EntryPoint = "NDIlib_routing_clear_connection_metadata", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    public static extern void routing_clear_connection_metadata(nint p_instance);
+
+    public static string RoutingGetSourceNameWrapped(nint p_instance)
+    {
+        var result = routing_get_source_name(p_instance);
+        var sourceDetails = Marshal.PtrToStructure<source_t>(result);
+        var name = UTF.Utf8ToString(sourceDetails.p_ndi_name);
+
+        return name;
+    }
+
+    public static string SendGetSourceNameWrapped(nint p_instance)
+    {
+        var result = send_get_source_name(p_instance);
+        var sourceDetails = Marshal.PtrToStructure<source_t>(result);
+        var name = UTF.Utf8ToString(sourceDetails.p_ndi_name);
+
+        return name;
+    }
 
     /// <summary>
     /// Sends a metadata frame to any subscribed listeners.
@@ -781,7 +906,7 @@ public static unsafe partial class NDIWrapper
     }
 
 
-    public static NDIlib_source_v2_t[] find_get_current_sources_v2(
+    public static source_v2_t[] find_get_current_sources_v2(
         nint pInstance)
     {
         var sourcesPtr = find_get_current_sources_v2(pInstance, out var numSources);
@@ -790,13 +915,13 @@ public static unsafe partial class NDIWrapper
             return [];
         }
 
-        var sources = new NDIlib_source_v2_t[numSources];
+        var sources = new source_v2_t[numSources];
 
-        var structSize = Marshal.SizeOf<NDIlib_source_v2_t>();
+        var structSize = Marshal.SizeOf<source_v2_t>();
         for(var i = 0; i < numSources; i++)
         {
             var currentPtr = nint.Add(sourcesPtr, i * structSize);
-            sources[i] = Marshal.PtrToStructure<NDIlib_source_v2_t>(currentPtr);
+            sources[i] = Marshal.PtrToStructure<source_v2_t>(currentPtr);
         }
 
         return sources;
@@ -860,6 +985,11 @@ public static unsafe partial class NDIWrapper
 
 	private static nint ResolveDllImport(string libraryName, Assembly assembly, DllImportSearchPath? searchPath)
 	{
+        if(libraryName != LibraryName)
+        {
+            return nint.Zero;
+        }
+
         if (!string.IsNullOrEmpty(exactLookupPath))
         {
             var forcedHandle = nint.Zero;
@@ -1495,13 +1625,13 @@ public struct source_t
     //		MACHINE_NAME (NDI_SOURCE_NAME)
     // If you specify this parameter either as NULL, or an EMPTY string then the
     // specific ip addres adn port number from below is used.
-    public IntPtr p_ndi_name;
+    public nint p_ndi_name;
 
     // A UTF8 string that provides the actual network address and any parameters. 
     // This is not meant to be application readable and might well change in the future.
     // This can be nullptr if you do not know it and the API internally will instantiate
     // a finder that is used to discover it even if it is not yet available on the network.
-    public IntPtr p_url_address;
+    public nint p_url_address;
 }
 
 // This describes a video frame
@@ -1513,6 +1643,8 @@ public struct video_frame_v2_t
 
     // What FourCC this is with. This can be two values
     public FourCC_type_e FourCC;
+
+    public readonly FourCC_video_type_ex_e FourCCEx => (FourCC_video_type_ex_e)this.FourCC;
 
     // What is the frame-rate of this frame.
     // For instance NTSC is 30000,1001 = 30000/1001 = 29.97fps
@@ -1530,14 +1662,14 @@ public struct video_frame_v2_t
     public Int64 timecode;
 
     // The video data itself
-    public IntPtr p_data;
+    public nint p_data;
 
     // The inter line stride of the video data, in bytes.
     public int line_stride_in_bytes;
 
     // Per frame metadata for this frame. This is a NULL terminated UTF8 string that should be
     // in XML format. If you do not want any metadata then you may specify NULL here.
-    public IntPtr p_metadata;
+    public nint p_metadata;
 
     // This is only valid when receiving a frame and is specified as a 100ns time that was the exact
     // moment that the frame was submitted by the sending side and is generated by the SDK. If this
@@ -1562,14 +1694,14 @@ public struct audio_frame_v2_t
     public Int64 timecode;
 
     // The audio data
-    public IntPtr p_data;
+    public nint p_data;
 
     // The inter channel stride of the audio channels, in bytes
     public int channel_stride_in_bytes;
 
     // Per frame metadata for this frame. This is a NULL terminated UTF8 string that should be
     // in XML format. If you do not want any metadata then you may specify NULL here.
-    public IntPtr p_metadata;
+    public nint p_metadata;
 
     // This is only valid when receiving a frame and is specified as a 100ns time that was the exact
     // moment that the frame was submitted by the sending side and is generated by the SDK. If this
@@ -1597,7 +1729,7 @@ public struct audio_frame_v3_t
     FourCC_audio_type_e FourCC;
 
     // The audio data
-    public IntPtr p_data;
+    public nint p_data;
 
     // If the FourCC is not a compressed type and the audio format is planar,
     // then this will be the stride in bytes for a single channel.
@@ -1607,7 +1739,7 @@ public struct audio_frame_v3_t
 
     // Per frame metadata for this frame. This is a NULL terminated UTF8 string that should be
     // in XML format. If you do not want any metadata then you may specify NULL here.
-    public IntPtr p_metadata;
+    public nint p_metadata;
 
     // This is only valid when receiving a frame and is specified as a 100ns time that was the exact
     // moment that the frame was submitted by the sending side and is generated by the SDK. If this
@@ -1627,7 +1759,7 @@ public struct metadata_frame_t
     public Int64 timecode;
 
     // The metadata as a UTF8 XML string. This is a NULL terminated string.
-    public IntPtr p_data;
+    public nint p_data;
 }
 
 // Tally structures
@@ -1653,7 +1785,7 @@ public class Finder : IDisposable
 
     public Finder(bool showLocalSources = false, string[] groups = null, string[] extraIps = null)
     {
-        IntPtr groupsNamePtr = IntPtr.Zero;
+        nint groupsNamePtr = nint.Zero;
 
         // make a flat list of groups if needed
         if (groups != null)
@@ -1677,11 +1809,11 @@ public class Finder : IDisposable
         // that is not on your local sub-net then you can put a comma seperated list of 
         // those IP addresses here and those sources will be available locally even though
         // they are not mDNS discoverable. An example might be "12.0.0.8,13.0.12.8".
-        // When none is specified (IntPtr.Zero) the registry is used.
+        // When none is specified (nint.Zero) the registry is used.
         // Create a UTF-8 buffer from our string
         // Must use Marshal.FreeHGlobal() after use!
-        // IntPtr extraIpsPtr = NDI.Common.StringToUtf8("12.0.0.8,13.0.12.8")
-        IntPtr extraIpsPtr = IntPtr.Zero;
+        // nint extraIpsPtr = NDI.Common.StringToUtf8("12.0.0.8,13.0.12.8")
+        nint extraIpsPtr = nint.Zero;
 
         // make a flat list of ip addresses as comma separated strings
         if (extraIps != null)
@@ -1712,12 +1844,12 @@ public class Finder : IDisposable
         this._findInstancePtr = NDIWrapper.find_create_v2(ref findDesc);
 
         // free our UTF-8 buffer if we created one
-        if (groupsNamePtr != IntPtr.Zero)
+        if (groupsNamePtr != nint.Zero)
         {
             Marshal.FreeHGlobal(groupsNamePtr);
         }
 
-        if (extraIpsPtr != IntPtr.Zero)
+        if (extraIpsPtr != nint.Zero)
         {
             Marshal.FreeHGlobal(extraIpsPtr);
         }
@@ -1756,10 +1888,10 @@ public class Finder : IDisposable
                 }
             }
 
-            if (this._findInstancePtr != IntPtr.Zero)
+            if (this._findInstancePtr != nint.Zero)
             {
                 NDIWrapper.find_destroy(this._findInstancePtr);
-                this._findInstancePtr = IntPtr.Zero;
+                this._findInstancePtr = nint.Zero;
             }
 
             this._disposed = true;
@@ -1776,16 +1908,21 @@ public class Finder : IDisposable
         while (!this._exitThread)
         {
             // Wait up to 500ms sources to change
-            if (NDIWrapper.find_wait_for_sources(this._findInstancePtr, 500))
+            if (NDIWrapper.find_wait_for_sources(this._findInstancePtr, 2000))
             {
                 uint NumSources = 0;
-                IntPtr SourcesPtr = NDIWrapper.find_get_current_sources(this._findInstancePtr, ref NumSources);
+                nint SourcesPtr = NDIWrapper.find_get_current_sources(this._findInstancePtr, ref NumSources);
+
+                var currentSources = new List<Source>();
+                var addedSources = new List<Source>();
+                var removedSources = new List<Source>();
+
 
                 // convert each unmanaged ptr into a managed source_t
                 for (int i = 0; i < NumSources; i++)
                 {
                     // source ptr + (index * size of a source)
-                    IntPtr p = IntPtr.Add(SourcesPtr, (i * SourceSizeInBytes));
+                    nint p = nint.Add(SourcesPtr, (i * SourceSizeInBytes));
 
                     // marshal it to a managed source and assign to our list
                     source_t src = (source_t)Marshal.PtrToStructure(p, typeof(source_t));
@@ -1799,20 +1936,43 @@ public class Finder : IDisposable
                     if (!this.Sources.Any(item => item.Name == name))
                     {
                         var toAdd = new Source(src);
+                        addedSources.Add(toAdd);
                         this.Sources.Add(toAdd);
                         this.NewNdiSourceDiscovered?.Invoke(toAdd);
+                        currentSources.Add(toAdd);
                     }
+                    else
+                    {
+                        var source = this.Sources.FirstOrDefault(x => x.Name == name);
+                        if(source is not null)
+                        {
+                            currentSources.Add(source);
+                        }
+                    }
+                }
+
+                for(var i = 0; i < this.Sources.Count; i++)
+                {
+                    var source = this.Sources[i];
+                    if(currentSources.Any(x=>x == source))
+                    {
+                        continue;
+                    }
+
+                    removedSources.Add(source);
+                    this.Sources.RemoveAt(i);
+                    i--;
+                }
+
+                if (addedSources.Count > 0 || removedSources.Count > 0)
+                {
+                    this.SourceListChanged?.Invoke(addedSources.ToArray(), removedSources.ToArray());
                 }
             }
         }
     }
 
-    public void ForceRefresh()
-    {
-        this.Sources.Clear();
-    }
-
-    private IntPtr _findInstancePtr = IntPtr.Zero;
+    private nint _findInstancePtr = nint.Zero;
 
     private object _sourceLock = new object();
 
@@ -1822,10 +1982,13 @@ public class Finder : IDisposable
     // a way to exit the thread safely
     bool _exitThread = false;
 
+    public event NdiSourceListChanged SourceListChanged;
     public event NewNdiSourceDiscovered NewNdiSourceDiscovered;
 }
 
 public delegate void NewNdiSourceDiscovered(Source source);
+
+public delegate void NdiSourceListChanged(Source[] added, Source[] removed);
 
 public class Source
 {
@@ -1933,7 +2096,7 @@ public struct audio_frame_interleaved_16s_t
 	public int	reference_level;
 
 	// The audio data, interleaved 16bpp
-	public IntPtr	p_data;
+	public nint	p_data;
 }
 
 // This describes an audio frame
@@ -1953,7 +2116,7 @@ public struct audio_frame_interleaved_32f_t
 	public Int64	timecode;
 
 	// The audio data, interleaved 32bpp
-	public IntPtr	p_data;
+	public nint	p_data;
 }
 
 // This describes an audio frame
@@ -1973,7 +2136,7 @@ public struct audio_frame_interleaved_32s_t
 	public Int64 timecode;
 
 	// The audio data, interleaved 32bpp (Int32)
-	public IntPtr p_data;
+	public nint p_data;
 }
 
 
@@ -1981,7 +2144,7 @@ public struct audio_frame_interleaved_32s_t
 public static partial class UTF
 {
     // This REQUIRES you to use Marshal.FreeHGlobal() on the returned pointer!
-    public static IntPtr StringToUtf8(string managedString)
+    public static nint StringToUtf8(string managedString)
     {
         int len = Encoding.UTF8.GetByteCount(managedString);
 
@@ -1989,7 +2152,7 @@ public static partial class UTF
 
         Encoding.UTF8.GetBytes(managedString, 0, managedString.Length, buffer, 0);
 
-        IntPtr nativeUtf8 = Marshal.AllocHGlobal(buffer.Length);
+        nint nativeUtf8 = Marshal.AllocHGlobal(buffer.Length);
 
         Marshal.Copy(buffer, 0, nativeUtf8, buffer.Length);
 
@@ -1998,7 +2161,7 @@ public static partial class UTF
 
     // this version will also return the length of the utf8 string
     // This REQUIRES you to use Marshal.FreeHGlobal() on the returned pointer!
-    public static IntPtr StringToUtf8(string managedString, out int utf8Length)
+    public static nint StringToUtf8(string managedString, out int utf8Length)
     {
         utf8Length = Encoding.UTF8.GetByteCount(managedString);
 
@@ -2006,7 +2169,7 @@ public static partial class UTF
 
         Encoding.UTF8.GetBytes(managedString, 0, managedString.Length, buffer, 0);
 
-        IntPtr nativeUtf8 = Marshal.AllocHGlobal(buffer.Length);
+        nint nativeUtf8 = Marshal.AllocHGlobal(buffer.Length);
 
         Marshal.Copy(buffer, 0, nativeUtf8, buffer.Length);
 
@@ -2015,9 +2178,9 @@ public static partial class UTF
 
     // Length is optional, but recommended
     // This is all potentially dangerous
-    public static string Utf8ToString(IntPtr nativeUtf8, uint? length = null)
+    public static string Utf8ToString(nint nativeUtf8, uint? length = null)
     {
-        if (nativeUtf8 == IntPtr.Zero)
+        if (nativeUtf8 == nint.Zero)
             return string.Empty;
 
         uint len = 0;
@@ -2049,10 +2212,10 @@ public static partial class UTF
 public struct send_create_t
 {
     // The name of the NDI source to create. This is a NULL terminated UTF8 string.
-    public IntPtr p_ndi_name;
+    public nint p_ndi_name;
 
     // What groups should this source be part of. NULL means default.
-    public IntPtr p_groups;
+    public nint p_groups;
 
     // Do you want audio and video to "clock" themselves. When they are clocked then
     // by adding video frames, they will be rate limited to match the current frame-rate
@@ -2075,7 +2238,7 @@ public struct find_create_t
     public bool show_local_sources;
 
     // Which groups do you want to search in for sources
-    public IntPtr p_groups;
+    public nint p_groups;
 
     // The list of additional IP addresses that exist that we should query for
     // sources on. For instance, if you want to find the sources on a remote machine
@@ -2084,7 +2247,7 @@ public struct find_create_t
     // they are not mDNS discoverable. An example might be "12.0.0.8,13.0.12.8".
     // When none is specified the registry is used.
     // Default = NULL;
-    public IntPtr p_extra_ips;
+    public nint p_extra_ips;
 }
 
 
@@ -2161,7 +2324,7 @@ public struct recv_create_v3_t
     // The name of the NDI receiver to create. This is a NULL terminated UTF8 string and should be
     // the name of receive channel that you have. This is in many ways symettric with the name of
     // senders, so this might be "Channel 1" on your system.
-    public IntPtr p_ndi_recv_name;
+    public nint p_ndi_recv_name;
 }
 
 // This allows you determine the current performance levels of the receiving to be able to detect whether frames have been dropped

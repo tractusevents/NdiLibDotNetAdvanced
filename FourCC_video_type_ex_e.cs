@@ -1,7 +1,7 @@
 using System;
 
 namespace Tractus.Ndi;
-public enum NDIlib_FourCC_video_type_ex_e : uint
+public enum FourCC_video_type_ex_e : uint
 {
     NDIlib_FourCC_video_type_I420 = 808596553,
     NDIlib_FourCC_video_type_NV12 = 842094158,
