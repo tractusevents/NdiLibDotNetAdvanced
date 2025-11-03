@@ -637,6 +637,14 @@ public static unsafe partial class NDIWrapper
     [DllImport(LibraryName, EntryPoint = "NDIlib_framesync_free_video", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
     public static extern void framesync_free_video(nint p_instance, ref video_frame_v2_t p_video_data);
 
+    // framesync_capture_video 
+    [DllImport(LibraryName, EntryPoint = "NDIlib_framesync_capture_video", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    public unsafe static extern void framesync_capture_video(nint p_instance, video_frame_v2_t* p_video_data, frame_format_type_e field_type);
+
+    // framesync_free_video 
+    [DllImport(LibraryName, EntryPoint = "NDIlib_framesync_free_video", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    public unsafe static extern void framesync_free_video(nint p_instance, video_frame_v2_t* p_video_data);
+
 
     [DllImport(LibraryName, EntryPoint = "NDIlib_recv_kvm_is_supported", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
     public static extern bool recv_kvm_is_supported(nint pInstance);
@@ -824,7 +832,11 @@ public static unsafe partial class NDIWrapper
 
 
     [DllImport(LibraryName, EntryPoint = "NDIlib_routing_create_v2", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
-    public static extern nint routing_create_v2(nint p_instance, nint p_config_data);
+    public static extern nint routing_create_v2(ref routing_create_t p_create_settings, nint p_config_data);
+
+    [DllImport(LibraryName, EntryPoint = "NDIlib_routing_create_v2", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    public unsafe static extern nint routing_create_v2(routing_create_t* p_create_settings, nint p_config_data);
+
 
     [DllImport(LibraryName, EntryPoint = "NDIlib_routing_add_connection_metadata", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
     public static extern void routing_add_connection_metadata(nint p_instance, ref metadata_frame_t p_metadata);
@@ -1726,7 +1738,7 @@ public struct audio_frame_v3_t
     public Int64 timecode;
 
     // What FourCC describing the type of data for this frame
-    FourCC_audio_type_e FourCC;
+    public FourCC_audio_type_e FourCC;
 
     // The audio data
     public nint p_data;
@@ -1779,9 +1791,9 @@ public struct tally_t
 
 public class Finder : IDisposable
 {
-    public List<Source> Sources
-    { get; }
-        = new List<Source>();
+    //public List<Source> Sources
+    //{ get; }
+    //    = new List<Source>();
 
     public Finder(bool showLocalSources = false, string[] groups = null, string[] extraIps = null)
     {
@@ -1900,75 +1912,59 @@ public class Finder : IDisposable
 
     private bool _disposed = false;
 
-    private void FindThreadProc()
+    private object checkLock = new object();
+
+    private unsafe void FindThreadProc()
     {
         // the size of an source_t, for pointer offsets
         int SourceSizeInBytes = Marshal.SizeOf(typeof(source_t));
 
+        var lastNumberOfSources = 0u;
         while (!this._exitThread)
         {
-            // Wait up to 500ms sources to change
-            if (NDIWrapper.find_wait_for_sources(this._findInstancePtr, 2000))
+            lock (this.checkLock)
             {
-                uint NumSources = 0;
-                nint SourcesPtr = NDIWrapper.find_get_current_sources(this._findInstancePtr, ref NumSources);
-
-                var currentSources = new List<Source>();
-                var addedSources = new List<Source>();
-                var removedSources = new List<Source>();
-
-
-                // convert each unmanaged ptr into a managed source_t
-                for (int i = 0; i < NumSources; i++)
+                if (!NDIWrapper.find_wait_for_sources(this._findInstancePtr, 250))
                 {
-                    // source ptr + (index * size of a source)
-                    nint p = nint.Add(SourcesPtr, (i * SourceSizeInBytes));
-
-                    // marshal it to a managed source and assign to our list
-                    source_t src = (source_t)Marshal.PtrToStructure(p, typeof(source_t));
-
-                    // .Net doesn't handle marshaling UTF-8 strings properly
-                    string name = UTF.Utf8ToString(src.p_ndi_name);
-
-                    // Add it to the list if not already in the list.
-                    // We don't have to remove because NDI applications remember any sources seen during each run.
-                    // They might be selected and come back when the connection is restored.
-                    if (!this.Sources.Any(item => item.Name == name))
-                    {
-                        var toAdd = new Source(src);
-                        addedSources.Add(toAdd);
-                        this.Sources.Add(toAdd);
-                        this.NewNdiSourceDiscovered?.Invoke(toAdd);
-                        currentSources.Add(toAdd);
-                    }
-                    else
-                    {
-                        var source = this.Sources.FirstOrDefault(x => x.Name == name);
-                        if(source is not null)
-                        {
-                            currentSources.Add(source);
-                        }
-                    }
+                    continue;
                 }
 
-                for(var i = 0; i < this.Sources.Count; i++)
-                {
-                    var source = this.Sources[i];
-                    if(currentSources.Any(x=>x == source))
-                    {
-                        continue;
-                    }
+                var numSources = 0u;
+                var sourcesPtr = NDIWrapper.find_get_current_sources(this._findInstancePtr, ref numSources);
 
-                    removedSources.Add(source);
-                    this.Sources.RemoveAt(i);
-                    i--;
-                }
-
-                if (addedSources.Count > 0 || removedSources.Count > 0)
+                if (numSources != lastNumberOfSources)
                 {
-                    this.SourceListChanged?.Invoke(addedSources.ToArray(), removedSources.ToArray());
+                    lastNumberOfSources = numSources;
+                    this.SourceListChanged?.Invoke();
                 }
             }
+        }
+    }
+
+    public unsafe NdiSource[] GetCurrentSourceList()
+    {
+        lock (this.checkLock)
+        {
+            var numSources = 0u;
+            var sourcesPtr = NDIWrapper.find_get_current_sources(this._findInstancePtr, ref numSources);
+
+            if(numSources == 0)
+            {
+                return Array.Empty<NdiSource>();
+            }
+
+            var toReturn = new NdiSource[(int)numSources];
+
+            var sourceSpan = new ReadOnlySpan<source_t>(sourcesPtr.ToPointer(), (int)numSources);
+
+            for (var i = 0; i < numSources; i++)
+            {
+                var source = sourceSpan[i];
+                var toAdd = new NdiSource(ref source);
+                toReturn[i] = toAdd;
+            }
+
+            return toReturn;
         }
     }
 
@@ -1982,95 +1978,65 @@ public class Finder : IDisposable
     // a way to exit the thread safely
     bool _exitThread = false;
 
-    public event NdiSourceListChanged SourceListChanged;
-    public event NewNdiSourceDiscovered NewNdiSourceDiscovered;
+    public event Action SourceListChanged;
 }
 
-public delegate void NewNdiSourceDiscovered(Source source);
-
-public delegate void NdiSourceListChanged(Source[] added, Source[] removed);
-
-public class Source
+public class NdiSource
 {
-    // Really only useful for disconnects or for default values
-    public Source()
-    {
-    }
+    private readonly byte[] nameUtf8;
+    public ReadOnlySpan<byte> NameUtf8 => this.nameUtf8;
 
-    // Construct from source_t
-    public Source(source_t source_t)
-    {
-        this.Name = UTF.Utf8ToString(source_t.p_ndi_name);
-    }
+    private readonly int SpaceIndex;
 
-    // Construct from strings
-    public Source(string name)
-    {
-        this.Name = name;
-    }
+    public ReadOnlySpan<byte> ComputerNameUtf8 => this.SpaceIndex >= 0 ? this.NameUtf8.Slice(0, this.SpaceIndex) : this.NameUtf8;
+    public ReadOnlySpan<byte> SourceNameUtf8 => this.SpaceIndex >= 0 ? this.NameUtf8.Slice(this.SpaceIndex + 1) : this.NameUtf8;
 
-    // Copy constructor.
-    public Source(Source previousSource)
-    {
-        this.Name = previousSource.Name;
-        this._uri = previousSource._uri;
-    }
+    private string? cachedName;
+    private string? cachedComputerName;
+    private string? cachedSourceName;
 
-    // These are purposely 'public get' only because
-    // they should not change during the life of a source.
-    public string Name
+    public string Name => this.cachedName ??= Encoding.UTF8.GetString(this.nameUtf8);
+    public string ComputerName => this.cachedComputerName ??= Encoding.UTF8.GetString(this.ComputerNameUtf8);
+    public string SourceName
     {
-        get { return this._name; }
-        private set
+        get
         {
-            this._name = value;
-
-            try
-            {
-                // BUG: This strips out the double brackets if the NDI source is a bridged source.
-                int parenIdx = this._name.IndexOf(" (");
-                this._computerName = this._name.Substring(0, parenIdx);
-
-                this._sourceName = Regex.Match(this._name, @"(?<=\().+?(?=\))").Value;
-
-                string uriString = string.Format("ndi://{0}/{1}", this._computerName, System.Net.WebUtility.UrlEncode(this._sourceName));
-
-                if (!Uri.TryCreate(uriString, UriKind.Absolute, out this._uri))
-                    this._uri = null;
-            }
-            catch (Exception)
-            {
-                this._uri = null;
-            }
-
+            var toReturn = this.cachedSourceName = this.cachedSourceName ?? Encoding.UTF8.GetString(this.SourceNameUtf8);
+            return toReturn[1..(toReturn.Length - 1)].Trim();
         }
     }
 
-    public string ComputerName
+    private const byte SPACE_CHARCODE = 0x20;
+
+    public NdiSource(ref source_t source)
     {
-        get { return this._computerName; }
+        this.nameUtf8 = CopyUtf8FromPointer(source.p_ndi_name);
+        this.SpaceIndex = this.NameUtf8.IndexOf(SPACE_CHARCODE);
     }
 
-    public string SourceName
+    private static unsafe byte[] CopyUtf8FromPointer(nint ptr)
     {
-        get { return this._sourceName; }
-    }
+        if (ptr == nint.Zero)
+            return Array.Empty<byte>();
 
-    public Uri Uri
-    {
-        get { return this._uri; }
-    }
+        byte* p = (byte*)ptr;
+        int len = 0;
+        while (p[len] != 0) len++;
 
-    public override string ToString()
-    {
-        return this.Name;
-    }
+        var buf = new byte[len];
+        fixed (byte* dst = buf)
+            Buffer.MemoryCopy(p, dst, len, len);
 
-    private string _name = string.Empty;
-    private string _computerName = string.Empty;
-    private string _sourceName = string.Empty;
-    private Uri _uri = null;
+        return buf;
+    }
 }
+
+
+//public delegate void NewNdiSourceDiscovered(Source source);
+
+//public delegate void NdiSourceListChanged(Source[] added, Source[] removed);
+
+
 
 // This describes an audio frame
 [StructLayoutAttribute(LayoutKind.Sequential)]
@@ -2139,6 +2105,58 @@ public struct audio_frame_interleaved_32s_t
 	public nint p_data;
 }
 
+public class NDIInteropString : IDisposable
+{
+    public readonly string value;
+    public readonly nint utf8Ptr;
+    private bool disposedValue;
+
+    public NDIInteropString(string? value)
+    {
+        if(value == null)
+        {
+            this.value = "";
+            this.utf8Ptr = nint.Zero;
+        }
+        else
+        {
+            this.value = value;
+            this.utf8Ptr = UTF.StringToUtf8(this.value);
+        }
+    }
+
+    public static implicit operator nint(NDIInteropString s) => s.utf8Ptr;
+    public static implicit operator string(NDIInteropString s) => s.value;
+
+    protected virtual void Dispose(bool disposing)
+    {
+        if (!this.disposedValue)
+        {
+            if (disposing)
+            {
+                if(this.utf8Ptr != nint.Zero)
+                {
+                    Marshal.FreeHGlobal(this.utf8Ptr);
+                }
+            }
+            this.disposedValue = true;
+        }
+    }
+
+    // // TODO: override finalizer only if 'Dispose(bool disposing)' has code to free unmanaged resources
+    // ~NDIInteropString()
+    // {
+    //     // Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
+    //     Dispose(disposing: false);
+    // }
+
+    public void Dispose()
+    {
+        // Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
+        this.Dispose(disposing: true);
+        GC.SuppressFinalize(this);
+    }
+}
 
 [SuppressUnmanagedCodeSecurity]
 public static partial class UTF

@@ -1,7 +1,7 @@
 using System;
 
 namespace Tractus.Ndi;
-public enum NDIlib_recv_color_format_ex_e
+public enum recv_color_format_ex_e
 {
     // No alpha channel: BGRX Alpha channel: BGRA
     recv_color_format_BGRX_BGRA = 0,

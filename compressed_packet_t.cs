@@ -4,7 +4,7 @@ using System.Runtime.InteropServices;
 namespace Tractus.Ndi;
 
 [StructLayout(LayoutKind.Sequential, Pack = 1)]
-public struct NDIlib_compressed_packet_t
+public struct compressed_packet_t
 {
     public int version;
     public NDIlib_compressed_FourCC_type_e fourCC;
