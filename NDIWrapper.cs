@@ -571,6 +571,15 @@ public static unsafe partial class NDIWrapper
         bool allow_monitoring,
         [MarshalAs(UnmanagedType.LPUTF8Str)]string p_input_group_name);
 
+    [DllImport(LibraryName, EntryPoint = "NDIlib_recv_advertiser_add_receiver", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    public static extern bool recv_advertiser_add_receiver(
+        nint p_instance,
+        nint p_receiver,
+        bool allow_controlling,
+        bool allow_monitoring,
+        nint p_input_group_name);
+
+
     [DllImport(LibraryName, EntryPoint = "NDIlib_recv_advertiser_del_receiver", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
     public static extern bool recv_advertiser_del_receiver(
         nint p_instance,
@@ -820,6 +829,16 @@ public static unsafe partial class NDIWrapper
         ref recv_create_v3_t createSettings,
         nint configData);
 
+    [DllImport(LibraryName, EntryPoint = "NDIlib_recv_create_v4", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    public unsafe static extern nint recv_create_v4(
+    recv_create_v3_t* createSettings,
+    nint configData);
+
+    [DllImport(LibraryName, EntryPoint = "NDIlib_recv_create_v4", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    public unsafe static extern nint recv_create_v4(
+    nint createSettings,
+    nint configData);
+
 
     [DllImport(LibraryName, EntryPoint = "NDIlib_recv_create_v3", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
     public static extern nint recv_create_v3(
@@ -941,6 +960,49 @@ public static unsafe partial class NDIWrapper
 
     [DllImport(LibraryName, EntryPoint = "NDIlib_routing_clear_connection_metadata", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
     public static extern void routing_clear_connection_metadata(nint p_instance);
+
+
+    #region NDI 6.3
+
+    [DllImport(LibraryName, EntryPoint = "NDIlib_send_advertiser_create", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    public static extern nint send_advertiser_create(ref send_advertiser_create_t p_create_settings);
+
+    [DllImport(LibraryName, EntryPoint = "NDIlib_send_advertiser_create", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    public unsafe static extern nint send_advertiser_create(send_advertiser_create_t* p_create_settings);
+
+    [DllImport(LibraryName, EntryPoint = "NDIlib_send_advertiser_destroy", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    public static extern void send_advertiser_destroy(nint p_instance);
+
+    [DllImport(LibraryName, EntryPoint = "NDIlib_send_advertiser_add_sender", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    public static extern bool send_advertiser_add_sender(
+        nint p_instance,
+        nint p_sender,
+        bool allow_monitoring);
+
+    [DllImport(LibraryName, EntryPoint = "NDIlib_send_advertiser_del_sender", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    public static extern bool send_advertiser_del_sender(
+        nint p_instance,
+        nint p_sender);
+
+    [DllImport(LibraryName, EntryPoint = "NDIlib_send_listener_create", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    public static extern nint send_listener_create(ref send_listener_create_t p_create_settings);
+
+    [DllImport(LibraryName, EntryPoint = "NDIlib_send_listener_create", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    public static unsafe extern nint send_listener_create(send_listener_create_t* p_create_settings);
+
+    [DllImport(LibraryName, EntryPoint = "NDIlib_send_listener_destroy", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    public static extern void send_listener_destroy(nint p_instance);
+
+    [DllImport(LibraryName, EntryPoint = "NDIlib_send_listener_get_server_url", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    public static extern nint send_listener_get_server_url(nint p_instance);
+
+    [DllImport(LibraryName, EntryPoint = "NDIlib_send_listener_get_senders", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    public static extern nint send_listener_get_senders(nint p_instance, out uint p_num_senders);
+
+    [DllImport(LibraryName, EntryPoint = "NDIlib_send_listener_wait_for_senders", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    public static extern bool send_listener_wait_for_senders(nint p_instance, uint timeout_in_ms);
+
+    #endregion
 
     public static string RoutingGetSourceNameWrapped(nint p_instance)
     {
@@ -1274,6 +1336,21 @@ public static class NDIConstants
 
     public const uint NDIlib_recv_color_format_ex_compressed_v5_with_audio = 308;
     public const uint NDIlib_recv_color_format_compressed_v5_with_audio = NDIlib_recv_color_format_ex_compressed_v5_with_audio;
+
+    // Allow SpeedHQ frames, compressed H.264 frames, HEVC frames and HEVC/H264 with alpha -- protected or not.
+    public const uint NDIlib_recv_color_format_ex_compressed_v6 = 313;
+    public const uint NDIlib_recv_color_format_compressed_v6 = NDIlib_recv_color_format_ex_compressed_v6;
+
+    // This is like a combination of the NDIlib_recv_color_format_best and NDIlib_recv_color_format_compressed_v6
+    // formats. Instead of delivering just UYVY or UYVA if decompressed, a 16-bit format such as P216 or PA16
+    // can also be delivered.
+    public const uint NDIlib_recv_color_format_ex_compressed_v6_best = 314;
+    public const uint NDIlib_recv_color_format_compressed_v6_best = NDIlib_recv_color_format_ex_compressed_v6_best;
+
+    // Allow SpeedHQ frames, compressed H.264 frames, HEVC frames and HEVC/H264 with alpha, along with
+    // compressed audio frames and OPUS support -- protected or not.
+    public const uint NDIlib_recv_color_format_ex_compressed_v6_with_audio = 315;
+    public const uint NDIlib_recv_color_format_compressed_v6_with_audio = NDIlib_recv_color_format_ex_compressed_v6_with_audio;
 
     public const uint NDIlib_recv_color_format_ex_max = 0x7fffffff;
 }
@@ -2203,21 +2280,15 @@ public struct audio_frame_interleaved_32s_t
 public class NDIInteropString : IDisposable
 {
     public readonly string value;
-    public readonly nint utf8Ptr;
+    public nint utf8Ptr;
     private bool disposedValue;
 
     public NDIInteropString(string? value)
     {
-        if(value == null)
-        {
-            this.value = "";
-            this.utf8Ptr = nint.Zero;
-        }
-        else
-        {
-            this.value = value;
-            this.utf8Ptr = UTF.StringToUtf8(this.value);
-        }
+        this.value = value ?? "";
+        this.utf8Ptr = value is null 
+            ? nint.Zero 
+            : UTF.StringToUtf8(value);
     }
 
     public static implicit operator nint(NDIInteropString s) => s.utf8Ptr;
@@ -2225,17 +2296,19 @@ public class NDIInteropString : IDisposable
 
     protected virtual void Dispose(bool disposing)
     {
-        if (!this.disposedValue)
+        if (this.disposedValue)
         {
-            if (disposing)
-            {
-                if(this.utf8Ptr != nint.Zero)
-                {
-                    Marshal.FreeHGlobal(this.utf8Ptr);
-                }
-            }
-            this.disposedValue = true;
+            return;
         }
+
+
+        if (this.utf8Ptr != nint.Zero)
+        {
+            Marshal.FreeHGlobal(this.utf8Ptr);
+            this.utf8Ptr = nint.Zero;
+        }
+
+        this.disposedValue = true;
     }
 
     // // TODO: override finalizer only if 'Dispose(bool disposing)' has code to free unmanaged resources
@@ -2466,4 +2539,29 @@ public struct recv_queue_t
 
     // The number of metadata frames
     public int metadata_frames;
+}
+
+[StructLayoutAttribute(LayoutKind.Sequential)]
+public struct send_advertiser_create_t
+{
+    public nint p_url_address;
+}
+
+[StructLayoutAttribute(LayoutKind.Sequential)]
+public struct send_listener_create_t
+{
+    public nint p_url_address;
+}
+
+[StructLayoutAttribute(LayoutKind.Sequential)]
+public struct sender_t
+{
+    public nint p_uuid;
+    public nint p_name;
+    public nint p_metadata;
+    public uint p_address;
+    public int port;
+    public nint p_groups;
+    public uint num_groups;
+    public bool events_subscribed;
 }
