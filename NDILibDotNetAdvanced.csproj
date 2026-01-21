@@ -1,11 +1,11 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <Title>NDI Advanced SDK Wrapper for .NET Core</Title>
-    <Version>2025.2.24.1</Version>
+    <Version>2026.1.21.1</Version>
     <Description>Provides a wrapper to the NDI Advanced libraries for Windows, macOS, and Linux.</Description>
     <PackageProjectUrl>https://github.com/eliaspuurunen/NdiLibDotNetAdvanced</PackageProjectUrl>
     <PackageIcon>logo.png</PackageIcon>
