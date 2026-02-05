@@ -747,6 +747,10 @@ public static unsafe partial class NDIWrapper
     [DllImport(LibraryName, EntryPoint = "NDIlib_framesync_capture_audio_v2", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
     public static extern nint framesync_capture_audio_v2(nint p_instance, ref audio_frame_v3_t p_audio_data, int sample_rate, int no_channels, int no_samples);
 
+    // framesync_capture_audio_v2
+    [DllImport(LibraryName, EntryPoint = "NDIlib_framesync_capture_audio_v2", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    public static unsafe extern nint framesync_capture_audio_v2(nint p_instance, audio_frame_v3_t* p_audio_data, int sample_rate, int no_channels, int no_samples);
+
     // framesync_free_audio 
     [DllImport(LibraryName, EntryPoint = "NDIlib_framesync_free_audio", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
     public static extern void framesync_free_audio(nint p_instance, ref audio_frame_v2_t p_audio_data);
@@ -754,6 +758,10 @@ public static unsafe partial class NDIWrapper
     // framesync_free_audio_v2
     [DllImport(LibraryName, EntryPoint = "NDIlib_framesync_free_audio_v2", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
     public static extern void framesync_free_audio_v2(nint p_instance, ref audio_frame_v3_t p_audio_data);
+
+    // framesync_free_audio_v2
+    [DllImport(LibraryName, EntryPoint = "NDIlib_framesync_free_audio_v2", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    public static unsafe extern void framesync_free_audio_v2(nint p_instance, audio_frame_v3_t* p_audio_data);
 
     // framesync_audio_queue_depth 
     [DllImport(LibraryName, EntryPoint = "NDIlib_framesync_audio_queue_depth", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
