@@ -743,6 +743,10 @@ public static unsafe partial class NDIWrapper
     [DllImport(LibraryName, EntryPoint = "NDIlib_framesync_capture_audio", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
     public static extern nint framesync_capture_audio(nint p_instance, ref audio_frame_v2_t p_audio_data, int sample_rate, int no_channels, int no_samples);
 
+    // framesync_capture_audio 
+    [DllImport(LibraryName, EntryPoint = "NDIlib_framesync_capture_audio", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    public static unsafe extern nint framesync_capture_audio(nint p_instance, audio_frame_v2_t* p_audio_data, int sample_rate, int no_channels, int no_samples);
+
     // framesync_capture_audio_v2
     [DllImport(LibraryName, EntryPoint = "NDIlib_framesync_capture_audio_v2", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
     public static extern nint framesync_capture_audio_v2(nint p_instance, ref audio_frame_v3_t p_audio_data, int sample_rate, int no_channels, int no_samples);
@@ -750,6 +754,10 @@ public static unsafe partial class NDIWrapper
     // framesync_capture_audio_v2
     [DllImport(LibraryName, EntryPoint = "NDIlib_framesync_capture_audio_v2", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
     public static unsafe extern nint framesync_capture_audio_v2(nint p_instance, audio_frame_v3_t* p_audio_data, int sample_rate, int no_channels, int no_samples);
+
+    // framesync_free_audio 
+    [DllImport(LibraryName, EntryPoint = "NDIlib_framesync_free_audio", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    public static unsafe extern void framesync_free_audio(nint p_instance, audio_frame_v2_t* p_audio_data);
 
     // framesync_free_audio 
     [DllImport(LibraryName, EntryPoint = "NDIlib_framesync_free_audio", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
@@ -844,6 +852,14 @@ public static unsafe partial class NDIWrapper
     // void NDIlib_send_send_video_async_v2(NDIlib_send_instance_t p_instance, const NDIlib_video_frame_v2_t* p_video_data);
     [DllImport(LibraryName, EntryPoint = "NDIlib_send_send_video_async_v2", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
     public static extern void send_send_video_async_v2_adv(nint pInstance, video_frame_v2_t *pVideoData);
+
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl, EntryPoint = "NDIlib_send_send_audio_v2", ExactSpelling = true)]
+    public static extern void send_send_audio_v2(nint p_instance, ref audio_frame_v2_t p_audio_data);
+
+    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl, EntryPoint = "NDIlib_send_send_audio_v2", ExactSpelling = true)]
+    public static extern unsafe void send_send_audio_v2(nint p_instance, audio_frame_v2_t* p_audio_data);
+
 
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl, EntryPoint = "NDIlib_send_send_audio_v3", ExactSpelling = true)]
