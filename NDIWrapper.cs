@@ -696,6 +696,13 @@ public static unsafe partial class NDIWrapper
         ref metadata_frame_t pMetadata,
         uint timeoutInMs);
 
+    [DllImport(LibraryName, EntryPoint = "NDIlib_send_get_tally", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    [return: MarshalAs(UnmanagedType.U1)]
+    public static extern bool send_get_tally(
+        nint pInstance,
+        ref tally_t tally,
+        uint timeoutInMs);
+
 
     [DllImport(LibraryName, EntryPoint = "NDIlib_send_capture", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
     public static extern unsafe frame_type_e send_capture(
