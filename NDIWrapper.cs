@@ -1018,6 +1018,9 @@ public static unsafe partial class NDIWrapper
     [DllImport(LibraryName, EntryPoint = "NDIlib_routing_clear_connection_metadata", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
     public static extern void routing_clear_connection_metadata(nint p_instance);
 
+    [DllImport(LibraryName, EntryPoint = "NDIlib_send_is_keyframe_required", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    [return: MarshalAs(UnmanagedType.I1)]
+    public static extern bool send_is_keyframe_required(nint senderPtr);
 
     #region NDI 6.3
 
