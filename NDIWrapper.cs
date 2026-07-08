@@ -1215,68 +1215,158 @@ public static unsafe partial class NDIWrapper
         return $"{platform}-{arch}";
     }
 
-	private static nint ResolveDllImport(string libraryName, Assembly assembly, DllImportSearchPath? searchPath)
-	{
+    private static nint ResolveDllImport(string libraryName, Assembly assembly, DllImportSearchPath? searchPath)
+    {
         if(libraryName != LibraryName)
         {
             return nint.Zero;
         }
 
-        if (!string.IsNullOrEmpty(exactLookupPath))
+        if (!string.IsNullOrWhiteSpace(exactLookupPath))
         {
-            var forcedHandle = nint.Zero;
-            NativeLibrary.TryLoad(exactLookupPath, out forcedHandle);
-            return forcedHandle;
+            return NativeLibrary.TryLoad(exactLookupPath, out var forcedHandle)
+                ? forcedHandle
+                : nint.Zero;
         }
 
-		var libName = string.Empty;
-        var useAlternateLoadLogic = false;
-
-		if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-		{
-			if (RuntimeInformation.ProcessArchitecture == Architecture.X64)
-			{
-				libName = 
-                    useAdvanced ? "Processing.NDI.Lib.Advanced.x64.dll" : "Processing.NDI.Lib.x64.dll";
-			}
-			else
-			{
-				throw new NotImplementedException("Non-x86-based arch not supported on Windows.");
-			}
-		}
-		else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-		{
-            useAlternateLoadLogic = true;
-			libName = useAdvanced ? "libndi_adv.so" : "libndi.so";
-		}
-		else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-		{
-			libName = useAdvanced ? "libndi_advanced.dylib" : "libndi.dynlib";
-		}
-		else
-		{
-			throw new NotImplementedException($"{RuntimeInformation.OSDescription} not supported.");
-		}
-
-        var handle = nint.Zero;
-
-        if(useAlternateLoadLogic)
+        foreach (var candidatePath in GetLibraryPathCandidates(assembly))
         {
-            var libPath = Path.Combine(
-                AppDomain.CurrentDomain.BaseDirectory,
-                libName
-            );
-
-            NativeLibrary.TryLoad(libPath, out handle);
-        }
-        else
-        {
-    		NativeLibrary.TryLoad(libName, out handle);
+            if (NativeLibrary.TryLoad(candidatePath, out var handle))
+            {
+                return handle;
+            }
         }
 
+        foreach (var candidateName in GetLibraryFileNames())
+        {
+            if (NativeLibrary.TryLoad(candidateName, out var handle))
+            {
+                return handle;
+            }
+        }
 
-		return handle;
+        return nint.Zero;
     }
+
+    private static IEnumerable<string> GetLibraryPathCandidates(Assembly assembly)
+    {
+        var fileNames = GetLibraryFileNames();
+        foreach (var directory in GetLibrarySearchDirectories(assembly))
+        {
+            foreach (var fileName in fileNames)
+            {
+                yield return Path.Combine(directory, fileName);
+            }
+        }
+    }
+
+    private static string[] GetLibraryFileNames()
+    {
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            if (RuntimeInformation.ProcessArchitecture == Architecture.X64)
+            {
+                return useAdvanced
+                    ? ["Processing.NDI.Lib.Advanced.x64.dll"]
+                    : ["Processing.NDI.Lib.x64.dll"];
+            }
+
+            throw new NotImplementedException("Non-x86-based arch not supported on Windows.");
+        }
+
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+        {
+            return useAdvanced
+                ? ["libndi_advanced.so", "libNdiAdv.so", "libndi_adv.so"]
+                : ["libndi.so"];
+        }
+
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+        {
+            return useAdvanced
+                ? ["libndi_advanced.dylib", "libNdiAdv.dylib"]
+                : ["libndi.dylib"];
+        }
+
+        throw new NotImplementedException($"{RuntimeInformation.OSDescription} not supported.");
+    }
+
+    private static string[] GetLibrarySearchDirectories(Assembly assembly)
+    {
+        var directories = new List<string>();
+        AddDirectory(directories, AppDomain.CurrentDomain.BaseDirectory);
+        AddDirectory(directories, Directory.GetCurrentDirectory());
+        AddDirectory(directories, Path.GetDirectoryName(assembly.Location));
+
+        AddEnvironmentPath(directories, Environment.GetEnvironmentVariable("NDI_RUNTIME_DIR"));
+        AddEnvironmentPath(directories, Environment.GetEnvironmentVariable("NDI_LIBRARY_PATH"));
+        AddEnvironmentPath(directories, Environment.GetEnvironmentVariable("NDI_SDK_DIR"));
+
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+        {
+            AddDirectory(directories, "/usr/local/lib");
+            AddDirectory(directories, "/usr/lib");
+            AddDirectory(directories, "/usr/lib/x86_64-linux-gnu");
+        }
+
+        foreach (var directory in directories.ToArray())
+        {
+            AddSourceTreeHints(directories, directory);
+        }
+
+        return directories
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+    }
+
+    private static void AddEnvironmentPath(List<string> directories, string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return;
+        }
+
+        foreach (var part in value.Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            AddDirectory(directories, part);
+            AddDirectory(directories, Path.Combine(part, "lib"));
+            AddDirectory(directories, Path.Combine(part, "bin"));
+        }
+    }
+
+    private static void AddSourceTreeHints(List<string> directories, string? startPath)
+    {
+        if (string.IsNullOrWhiteSpace(startPath))
+        {
+            return;
+        }
+
+        var directoryPath = Directory.Exists(startPath)
+            ? startPath
+            : Path.GetDirectoryName(startPath);
+        if (string.IsNullOrWhiteSpace(directoryPath))
+        {
+            return;
+        }
+
+        var directory = new DirectoryInfo(directoryPath);
+        for (var i = 0; i < 6 && directory is not null; i++, directory = directory.Parent)
+        {
+            AddDirectory(directories, Path.Combine(directory.FullName, "Tractus.Ndi.Multiview2", "bin", "Debug", "net10.0"));
+            AddDirectory(directories, Path.Combine(directory.FullName, "Tractus.Ndi.Multiview2", "publish_swengine_linux"));
+            AddDirectory(directories, Path.Combine(directory.FullName, "mvinstaller", "ndimv"));
+        }
+    }
+
+    private static void AddDirectory(List<string> directories, string? directory)
+    {
+        if (!string.IsNullOrWhiteSpace(directory))
+        {
+            directories.Add(directory);
+        }
+    }
+
 }
 
 public static class NDIConstants
@@ -1518,6 +1608,7 @@ public enum NdiKvmEventType
     MouseUp,
     MouseMove,
     MouseVerticalWheel,
+    MouseHorizontalWheel,
     KeyDown,
     KeyUp,
     Clipboard,
@@ -1636,14 +1727,18 @@ public class NdiKvmParser
                         return true;
                     }
 
-                // Mouse down (left=0x04 / right=0x06)
+                // Mouse down (left=0x04 / middle=0x05 / right=0x06)
                 case 0x04:
+                case 0x05:
                 case 0x06:
                     {
                         eventType = NdiKvmEventType.MouseDown;
-                        var button = opcode == 0x04
-                            ? MouseButton.Left
-                            : MouseButton.Right;
+                        var button = opcode switch
+                        {
+                            0x05 => MouseButton.Middle,
+                            0x06 => MouseButton.Right,
+                            _ => MouseButton.Left
+                        };
                         args = new KvmEventArgs(
                             new NdiKvmMouseClickEvent { Button = button, Clicked = true },
                             data.ToArray(),
@@ -1651,16 +1746,49 @@ public class NdiKvmParser
                         return true;
                     }
 
-                // Mouse up (left=0x07 / right=0x09)
+                // Mouse up (left=0x07 / middle=0x08 / right=0x09)
                 case 0x07:
+                case 0x08:
                 case 0x09:
                     {
                         eventType = NdiKvmEventType.MouseUp;
-                        var button = opcode == 0x07
-                            ? MouseButton.Left
-                            : MouseButton.Right;
+                        var button = opcode switch
+                        {
+                            0x08 => MouseButton.Middle,
+                            0x09 => MouseButton.Right,
+                            _ => MouseButton.Left
+                        };
                         args = new KvmEventArgs(
                             new NdiKvmMouseClickEvent { Button = button, Clicked = false },
+                            data.ToArray(),
+                            xml);
+                        return true;
+                    }
+
+                case 0x0A:
+                case 0x0B:
+                    {
+                        eventType = opcode == 0x0A
+                            ? NdiKvmEventType.MouseVerticalWheel
+                            : NdiKvmEventType.MouseHorizontalWheel;
+                        var units = BinaryPrimitives.ReadSingleLittleEndian(data.Slice(1, 4));
+                        args = new KvmEventArgs(
+                            new NdiKvmMouseWheelEvent
+                            {
+                                Units = units,
+                                Wheel = opcode == 0x0A ? MouseWheel.Vertical : MouseWheel.Horizontal
+                            },
+                            data.ToArray(),
+                            xml);
+                        return true;
+                    }
+
+                case 0x0D:
+                    {
+                        eventType = NdiKvmEventType.Clipboard;
+                        var clipboardContents = Encoding.UTF8.GetString(data.Slice(5));
+                        args = new KvmEventArgs(
+                            new NdiKvmClipboardEvent { Clipboard = clipboardContents },
                             data.ToArray(),
                             xml);
                         return true;
@@ -1756,14 +1884,16 @@ public class NdiKvmParser
                         Clicked = false
                     }, binary, metadataXml);
                 case 0x0A:
-                    eventType = NdiKvmEventType.MouseVerticalWheel;
+                case 0x0B:
+                    eventType = opcode == 0x0A
+                        ? NdiKvmEventType.MouseVerticalWheel
+                        : NdiKvmEventType.MouseHorizontalWheel;
                     var units = BinaryPrimitives.ReadSingleLittleEndian(data.Slice(1, 4));
                     return new KvmEventArgs(new NdiKvmMouseWheelEvent()
                     {
                         Units = units,
-                        Wheel = MouseWheel.Vertical
+                        Wheel = opcode == 0x0A ? MouseWheel.Vertical : MouseWheel.Horizontal
                     }, binary, metadataXml);
-                    break;
                 case 0x0D:
                     // Clipboard event.
                     eventType = NdiKvmEventType.Clipboard;
