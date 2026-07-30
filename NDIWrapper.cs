@@ -976,6 +976,9 @@ public static unsafe partial class NDIWrapper
     [DllImport(LibraryName, EntryPoint = "NDIlib_send_get_source_name", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
     public static extern nint send_get_source_name(nint p_instance);
 
+    [DllImport(LibraryName, EntryPoint = "NDIlib_send_get_no_connections", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    public static extern int send_get_no_connections(nint p_instance, uint timeout_in_ms);
+
 
     [DllImport(LibraryName, EntryPoint = "NDIlib_routing_create", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
     public static extern nint routing_create(ref routing_create_t p_create_settings);
