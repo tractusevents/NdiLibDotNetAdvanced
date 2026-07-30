@@ -1101,15 +1101,21 @@ public static unsafe partial class NDIWrapper
             metadataXml += "\0";
         }
 
-        var metaFrame = new metadata_frame_t()
+        var metadataPtr = UTF.StringToUtf8(metadataXml);
+        try
         {
-            p_data = UTF.StringToUtf8(metadataXml),
-            timecode = NDIWrapper.send_timecode_synthesize,
-        };
+            var metaFrame = new metadata_frame_t()
+            {
+                p_data = metadataPtr,
+                timecode = NDIWrapper.send_timecode_synthesize,
+            };
 
-        send_send_metadata(senderPtr, ref metaFrame);
-
-        send_free_metadata(senderPtr, ref metaFrame);
+            send_send_metadata(senderPtr, ref metaFrame);
+        }
+        finally
+        {
+            Marshal.FreeHGlobal(metadataPtr);
+        }
     }
 
     public static unsafe void AddMetadata(nint senderPtr, string[] metadata, bool replaceAll = false)
