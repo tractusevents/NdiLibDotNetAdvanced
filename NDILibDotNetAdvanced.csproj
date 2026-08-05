@@ -4,16 +4,29 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <Title>NDI Advanced SDK Wrapper for .NET Core</Title>
-    <Version>2026.1.21.1</Version>
-    <Description>Provides a wrapper to the NDI Advanced libraries for Windows, macOS, and Linux.</Description>
-    <PackageProjectUrl>https://github.com/eliaspuurunen/NdiLibDotNetAdvanced</PackageProjectUrl>
-    <PackageIcon>logo.png</PackageIcon>
-    <RepositoryUrl>https://github.com/eliaspuurunen/NdiLibDotNetAdvanced</RepositoryUrl>
+    <IsPackable>true</IsPackable>
+    <PackageId>NDILibDotNetAdvanced</PackageId>
+    <Title>.NET Wrapper for the NDI Basic and Advanced SDKs</Title>
+    <Authors>Tractus Events</Authors>
+    <VersionPrefix>2026.8.5.1</VersionPrefix>
+    <Description>Thin managed interop wrapper for the NDI Basic and Advanced SDK libraries on Windows, macOS, and Linux. Intended for developers familiar with the native NDI SDK. Supersedes NDILibDotNetCoreBase.</Description>
+    <PackageProjectUrl>https://github.com/tractusevents/NdiLibDotNetAdvanced</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/tractusevents/NdiLibDotNetAdvanced</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
-    <PackageTags>ndi, network device interface</PackageTags>
+    <PackageTags>ndi;network-device-interface;video;interop</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageIcon>logo.png</PackageIcon>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageReleaseNotes>This package supersedes NDILibDotNetCoreBase and is not API-compatible with it. See the migration section in the README.</PackageReleaseNotes>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
+
+  <ItemGroup>
+    <None Update="logo.png" Pack="true" PackagePath="\" />
+    <None Update="README.md" Pack="true" PackagePath="\" />
+    <None Update="LICENSE.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
 
 </Project>

@@ -2240,6 +2240,15 @@ public class Finder : IDisposable
             Marshal.FreeHGlobal(extraIpsPtr);
         }
 
+        if (this._findInstancePtr == nint.Zero)
+        {
+            throw new InvalidOperationException("Unable to create the NDI finder.");
+        }
+
+        // Populate the first managed snapshot before callers can query the finder.
+        // After this point only the finder thread calls the native finder APIs.
+        this.RefreshSourceSnapshot();
+
         // start up a thread to update on
         this._findThread = new Thread(this.FindThreadProc) { IsBackground = true, Name = "NdiFindThread" };
         this._findThread.Start();
@@ -2286,73 +2295,185 @@ public class Finder : IDisposable
 
     private bool _disposed = false;
 
-    private object checkLock = new object();
+    // Published arrays are never modified. Readers copy the current array while
+    // holding a read lock; the finder thread takes the write lock only to swap a
+    // fully built snapshot into place.
+    private readonly ReaderWriterLockSlim _sourceSnapshotLock = new();
+    private string[] _sourceNames = Array.Empty<string>();
+    private NdiSource[] _sources = Array.Empty<NdiSource>();
+    private int _sourceSnapshotVersion;
+    private int _notificationWorkerQueued;
 
-    private unsafe void FindThreadProc()
+    private void FindThreadProc()
     {
-        // the size of an source_t, for pointer offsets
-        int SourceSizeInBytes = Marshal.SizeOf(typeof(source_t));
-
-        var lastNumberOfSources = 0u;
         while (!this._exitThread)
         {
-            lock (this.checkLock)
+            if (!NDIWrapper.find_wait_for_sources(this._findInstancePtr, 250))
             {
-                if (!NDIWrapper.find_wait_for_sources(this._findInstancePtr, 250))
-                {
-                    continue;
-                }
+                continue;
+            }
 
-                var numSources = 0u;
-                var sourcesPtr = NDIWrapper.find_get_current_sources(this._findInstancePtr, ref numSources);
-
-                if (numSources != lastNumberOfSources)
-                {
-                    lastNumberOfSources = numSources;
-                    this.SourceListChanged?.Invoke();
-                }
+            if (this.RefreshSourceSnapshot())
+            {
+                this.QueueSourceListChanged();
             }
         }
     }
 
-    public unsafe NdiSource[] GetCurrentSourceList()
+    public NdiSource[] GetCurrentSourceList()
     {
-        lock (this.checkLock)
+        this._sourceSnapshotLock.EnterReadLock();
+        try
         {
-            var numSources = 0u;
-            var sourcesPtr = NDIWrapper.find_get_current_sources(this._findInstancePtr, ref numSources);
-
-            if(numSources == 0)
+            if (this._sources.Length == 0)
             {
                 return Array.Empty<NdiSource>();
             }
 
-            var toReturn = new NdiSource[(int)numSources];
+            var snapshot = new NdiSource[this._sources.Length];
+            Array.Copy(this._sources, snapshot, this._sources.Length);
+            return snapshot;
+        }
+        finally
+        {
+            this._sourceSnapshotLock.ExitReadLock();
+        }
+    }
 
-            var sourceSpan = new ReadOnlySpan<source_t>(sourcesPtr.ToPointer(), (int)numSources);
+    private unsafe bool RefreshSourceSnapshot()
+    {
+        var numSources = 0u;
+        var sourcesPtr = NDIWrapper.find_get_current_sources(this._findInstancePtr, ref numSources);
+        var sourceSpan = new ReadOnlySpan<source_t>(sourcesPtr.ToPointer(), (int)numSources);
 
-            for (var i = 0; i < numSources; i++)
+        string[] priorNames;
+        NdiSource[] priorSources;
+        this._sourceSnapshotLock.EnterReadLock();
+        try
+        {
+            priorNames = this._sourceNames;
+            priorSources = this._sources;
+        }
+        finally
+        {
+            this._sourceSnapshotLock.ExitReadLock();
+        }
+
+        var nextNames = new string[(int)numSources];
+        var nextSources = new NdiSource[(int)numSources];
+        var priorSourceReused = new bool[priorNames.Length];
+        var changed = nextNames.Length != priorNames.Length;
+
+        for (var i = 0; i < nextNames.Length; i++)
+        {
+            var source = sourceSpan[i];
+            var sourceName = Marshal.PtrToStringUTF8(source.p_ndi_name) ?? string.Empty;
+            var priorIndex = -1;
+
+            for (var priorSourceIndex = 0; priorSourceIndex < priorNames.Length; priorSourceIndex++)
             {
-                var source = sourceSpan[i];
-                var toAdd = new NdiSource(ref source);
-                toReturn[i] = toAdd;
+                if (!priorSourceReused[priorSourceIndex]
+                    && string.Equals(priorNames[priorSourceIndex], sourceName, StringComparison.Ordinal))
+                {
+                    priorIndex = priorSourceIndex;
+                    break;
+                }
             }
 
-            return toReturn;
+            if (priorIndex >= 0)
+            {
+                priorSourceReused[priorIndex] = true;
+                nextNames[i] = priorNames[priorIndex];
+                nextSources[i] = priorSources[priorIndex];
+            }
+            else
+            {
+                changed = true;
+                nextNames[i] = sourceName;
+                nextSources[i] = new NdiSource(ref source);
+            }
+        }
+
+        if (!changed)
+        {
+            return false;
+        }
+
+        this._sourceSnapshotLock.EnterWriteLock();
+        try
+        {
+            this._sourceNames = nextNames;
+            this._sources = nextSources;
+        }
+        finally
+        {
+            this._sourceSnapshotLock.ExitWriteLock();
+        }
+
+        Interlocked.Increment(ref this._sourceSnapshotVersion);
+        return true;
+    }
+
+    private void QueueSourceListChanged()
+    {
+        if (Interlocked.CompareExchange(ref this._notificationWorkerQueued, 1, 0) != 0)
+        {
+            return;
+        }
+
+        ThreadPool.QueueUserWorkItem(
+            static state => ((Finder)state!).NotifySourceListChanges(),
+            this);
+    }
+
+    private void NotifySourceListChanges()
+    {
+        while (true)
+        {
+            var notifiedVersion = Volatile.Read(ref this._sourceSnapshotVersion);
+            this.NotifySourceListChanged();
+
+            Volatile.Write(ref this._notificationWorkerQueued, 0);
+            if (Volatile.Read(ref this._sourceSnapshotVersion) == notifiedVersion
+                || Interlocked.CompareExchange(ref this._notificationWorkerQueued, 1, 0) != 0)
+            {
+                return;
+            }
+        }
+    }
+
+    private void NotifySourceListChanged()
+    {
+        var subscribers = this.SourceListChanged;
+        if (subscribers is null)
+        {
+            return;
+        }
+
+        foreach (var subscriber in subscribers.GetInvocationList())
+        {
+            try
+            {
+                ((Action)subscriber)();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Trace.TraceError(
+                    "NDI source-list notification failed: {0}",
+                    ex);
+            }
         }
     }
 
     private nint _findInstancePtr = nint.Zero;
 
-    private object _sourceLock = new object();
-
     // a thread to find on so that the UI isn't dragged down
-    Thread _findThread = null;
+    Thread? _findThread;
 
     // a way to exit the thread safely
-    bool _exitThread = false;
+    volatile bool _exitThread = false;
 
-    public event Action SourceListChanged;
+    public event Action? SourceListChanged;
 }
 
 public class NdiSource
