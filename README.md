@@ -126,8 +126,10 @@ native pointer. `NDIInteropString` bridges that boundary by allocating an unmana
 null-terminated UTF-8 copy of a managed string.
 
 It converts implicitly to `nint`, which allows it to be assigned directly to pointer
-fields such as `source_t.p_ndi_name`. It also converts back to the original managed
-`string`. The unmanaged buffer belongs to the `NDIInteropString` instance:
+fields such as `source_t.p_ndi_name`. It can also convert to its stored managed
+`string` value. `NDIInteropString` is primarily a small memory-ownership helper, not a
+high-level SDK string abstraction; the unmanaged buffer belongs to the
+`NDIInteropString` instance:
 
 ```csharp
 using var sourceName = new NDIInteropString("CAMERA (CAM-1)");
@@ -155,7 +157,9 @@ using var empty = new NDIInteropString("");     // Points to a single null termi
 ```
 
 Use `null` for an optional native string that should be absent, and `""` only when the
-NDI API expects a present but empty string.
+NDI API expects a present but empty string. For managed-string conversion, the class
+normalizes a `null` constructor argument to `""`; the distinction exists in the native
+pointer value, not in the stored managed value.
 
 ## Native library lookup
 

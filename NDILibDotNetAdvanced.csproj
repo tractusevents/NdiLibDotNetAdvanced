@@ -8,7 +8,7 @@
     <PackageId>NDILibDotNetAdvanced</PackageId>
     <Title>.NET Wrapper for the NDI Basic and Advanced SDKs</Title>
     <Authors>Tractus Events</Authors>
-    <VersionPrefix>2026.8.5.1</VersionPrefix>
+    <VersionPrefix>2026.10.29.1</VersionPrefix>
     <Description>Thin managed interop wrapper for the NDI Basic and Advanced SDK libraries on Windows, macOS, and Linux. Intended for developers familiar with the native NDI SDK. Supersedes NDILibDotNetCoreBase.</Description>
     <PackageProjectUrl>https://github.com/tractusevents/NdiLibDotNetAdvanced</PackageProjectUrl>
     <RepositoryUrl>https://github.com/tractusevents/NdiLibDotNetAdvanced</RepositoryUrl>
@@ -17,7 +17,7 @@
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageIcon>logo.png</PackageIcon>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <PackageReleaseNotes>This package supersedes NDILibDotNetCoreBase and is not API-compatible with it. See the migration section in the README.</PackageReleaseNotes>
+    <PackageReleaseNotes>Corrects NDI 6.3 Discovery Boolean/void signatures, guarantees native listener event cleanup, and removes receiver enum boxing. Managed return signatures changed for recv_listener_wait_for_receivers, recv_listener_free_events, and recv_advertiser_destroy. This package supersedes NDILibDotNetCoreBase; see the README for migration.</PackageReleaseNotes>
     <IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>

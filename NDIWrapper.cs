@@ -175,6 +175,7 @@ public static unsafe partial class NDIWrapper
 
 
     [DllImport(LibraryName, EntryPoint = "NDIlib_recv_listener_is_connected", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    [return: MarshalAs(UnmanagedType.I1)]
     public static extern bool recv_listener_is_connected(nint pInstance);
 
     [DllImport(LibraryName, EntryPoint = "NDIlib_recv_listener_get_server_url", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
@@ -195,7 +196,8 @@ public static unsafe partial class NDIWrapper
     internal static extern nint find_get_current_sources_v2(nint p_instance, out uint p_no_sources);
 
     [DllImport(LibraryName, EntryPoint = "NDIlib_recv_listener_wait_for_receivers", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
-    public static extern nint recv_listener_wait_for_receivers(
+    [return: MarshalAs(UnmanagedType.I1)]
+    public static extern bool recv_listener_wait_for_receivers(
         nint pInstance,
         uint timeoutMsec);
 
@@ -227,18 +229,20 @@ public static unsafe partial class NDIWrapper
         uint timeoutMsec);
 
     [DllImport(LibraryName, EntryPoint = "NDIlib_recv_listener_free_events", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
-    public static extern nint recv_listener_free_events(
+    public static extern void recv_listener_free_events(
         nint pInstance,
         nint pEvents);
 
     [DllImport(LibraryName, EntryPoint = "NDIlib_recv_listener_send_connect", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    [return: MarshalAs(UnmanagedType.I1)]
     public static extern bool recv_listener_send_connect(
         nint p_instance,
         [MarshalAs(UnmanagedType.LPUTF8Str)] string p_receiver_uuid,
-        [MarshalAs(UnmanagedType.LPUTF8Str)] string p_source_name
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string? p_source_name
     );
 
     [DllImport(LibraryName, EntryPoint = "NDIlib_recv_listener_send_connect", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    [return: MarshalAs(UnmanagedType.I1)]
     public static extern bool recv_listener_send_connect(
     nint p_instance,
     nint p_receiver_uuid,
@@ -246,30 +250,40 @@ public static unsafe partial class NDIWrapper
     );
 
 
+    // Copy strings while the listener is live, and release every acquired native batch.
     public static NDIlib_recv_listener_event[] GetListenerEvents(
         nint instance,
         uint timeoutInMilliseconds,
-        out uint numEvents
-)
+        out uint numEvents)
     {
-        nint pEvents = recv_listener_get_events(instance, out numEvents, timeoutInMilliseconds);
-        if (pEvents == nint.Zero || numEvents == 0)
+        var eventsPtr = recv_listener_get_events(instance, out numEvents, timeoutInMilliseconds);
+        if (eventsPtr == nint.Zero)
         {
             numEvents = 0;
             return Array.Empty<NDIlib_recv_listener_event>();
         }
 
-        int structSize = Marshal.SizeOf<NDIlib_recv_listener_event>();
-        var managed = new NDIlib_recv_listener_event[numEvents];
-        for (uint i = 0; i < numEvents; i++)
+        try
         {
-            var ptr = nint.Add(pEvents, (int)(i * structSize));
-            managed[i] = Marshal.PtrToStructure<NDIlib_recv_listener_event>(ptr);
-        }
+            if (numEvents == 0)
+            {
+                return Array.Empty<NDIlib_recv_listener_event>();
+            }
 
-        // free the native array
-        recv_listener_free_events(instance, pEvents);
-        return managed;
+            var structSize = Marshal.SizeOf<NDIlib_recv_listener_event>();
+            var managed = new NDIlib_recv_listener_event[checked((int)numEvents)];
+            for (var i = 0; i < managed.Length; i++)
+            {
+                var eventPtr = nint.Add(eventsPtr, checked(i * structSize));
+                managed[i] = Marshal.PtrToStructure<NDIlib_recv_listener_event>(eventPtr);
+            }
+
+            return managed;
+        }
+        finally
+        {
+            recv_listener_free_events(instance, eventsPtr);
+        }
     }
 
 
@@ -313,7 +327,7 @@ public static unsafe partial class NDIWrapper
                 for(var ci = 0; ci < toWrap.num_commands; ci++)
                 {
                     var rawValue = Marshal.ReadInt32(toWrap.p_commands, ci * sizeof(int));
-                    commandArray[ci] = (NDIlib_receiver_command_e)Enum.ToObject(typeof(NDIlib_receiver_command_e), rawValue);
+                    commandArray[ci] = (NDIlib_receiver_command_e)rawValue;
                 }
 
                 toAdd.p_commands = commandArray;
@@ -329,7 +343,7 @@ public static unsafe partial class NDIWrapper
                 for (var ci = 0; ci < toWrap.num_streams; ci++)
                 {
                     var rawValue = Marshal.ReadInt32(toWrap.p_streams, ci * sizeof(int));
-                    streamArray[ci] = (NDIlib_receiver_type_e)Enum.ToObject(typeof(NDIlib_receiver_type_e), rawValue);
+                    streamArray[ci] = (NDIlib_receiver_type_e)rawValue;
                 }
 
                 toAdd.p_streams = streamArray;
@@ -586,27 +600,30 @@ public static unsafe partial class NDIWrapper
         ref recv_advertiser_create_t p_create_settings);
 
     [DllImport(LibraryName, EntryPoint = "NDIlib_recv_advertiser_destroy", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
-    public static extern nint recv_advertiser_destroy(
+    public static extern void recv_advertiser_destroy(
         nint p_instance);
 
     [DllImport(LibraryName, EntryPoint = "NDIlib_recv_advertiser_add_receiver", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    [return: MarshalAs(UnmanagedType.I1)]
     public static extern bool recv_advertiser_add_receiver(
         nint p_instance,
         nint p_receiver,
-        bool allow_controlling,
-        bool allow_monitoring,
+        [MarshalAs(UnmanagedType.I1)] bool allow_controlling,
+        [MarshalAs(UnmanagedType.I1)] bool allow_monitoring,
         [MarshalAs(UnmanagedType.LPUTF8Str)]string p_input_group_name);
 
     [DllImport(LibraryName, EntryPoint = "NDIlib_recv_advertiser_add_receiver", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    [return: MarshalAs(UnmanagedType.I1)]
     public static extern bool recv_advertiser_add_receiver(
         nint p_instance,
         nint p_receiver,
-        bool allow_controlling,
-        bool allow_monitoring,
+        [MarshalAs(UnmanagedType.I1)] bool allow_controlling,
+        [MarshalAs(UnmanagedType.I1)] bool allow_monitoring,
         nint p_input_group_name);
 
 
     [DllImport(LibraryName, EntryPoint = "NDIlib_recv_advertiser_del_receiver", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    [return: MarshalAs(UnmanagedType.I1)]
     public static extern bool recv_advertiser_del_receiver(
         nint p_instance,
         nint p_receiver);
@@ -1040,12 +1057,14 @@ public static unsafe partial class NDIWrapper
     public static extern void send_advertiser_destroy(nint p_instance);
 
     [DllImport(LibraryName, EntryPoint = "NDIlib_send_advertiser_add_sender", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    [return: MarshalAs(UnmanagedType.I1)]
     public static extern bool send_advertiser_add_sender(
         nint p_instance,
         nint p_sender,
-        bool allow_monitoring);
+        [MarshalAs(UnmanagedType.I1)] bool allow_monitoring);
 
     [DllImport(LibraryName, EntryPoint = "NDIlib_send_advertiser_del_sender", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]
+    [return: MarshalAs(UnmanagedType.I1)]
     public static extern bool send_advertiser_del_sender(
         nint p_instance,
         nint p_sender);
