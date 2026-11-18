@@ -236,12 +236,12 @@ runs its discovery and allocation checks.
 
 ## NuGet packages
 
-The managed assembly is platform-neutral, so CI produces one NuGet package rather
-than six copies of the same package. Every push to `main` or `master` builds the
-project on these native GitHub-hosted runners before creating the package:
+The managed assembly is platform-neutral, so CI produces one NuGet package. Every
+push to `main` or `master` builds the project on the following GitHub-hosted runners
+before creating the package.
 
 - Windows x86-64 (`win-x64`) and ARM64 (`win-arm64`)
-- macOS x86-64 (`osx-x64`) and Apple Silicon (`osx-arm64`)
+- macOS Apple Silicon (`osx-arm64`)
 - Linux x86-64 (`linux-x64`) and ARM64 (`linux-arm64`)
 
 Successful runs expose the `.nupkg` and `.snupkg` files as a `nuget` workflow
