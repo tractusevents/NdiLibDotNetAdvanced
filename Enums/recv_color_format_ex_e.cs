@@ -1,6 +1,5 @@
-using System;
-
 namespace Tractus.Ndi;
+
 public enum recv_color_format_ex_e
 {
     // No alpha channel: BGRX Alpha channel: BGRA
@@ -19,7 +18,7 @@ public enum recv_color_format_ex_e
     // this format will return images in this format. The image data pointer will still point to the
     // "top" of the image, althought he stride will be negative. You can get the "bottom" line of the image
     // using : video_data.p_data + (video_data.yres - 1)*video_data.line_stride_in_bytes
-    recv_color_format_BGRX_BGRA_flipped = 200,
+    recv_color_format_BGRX_BGRA_flipped = 1000,
 
     // Read the SDK documentation to understand the pros and cons of this format.
     recv_color_format_fastest = 100,
@@ -86,6 +85,18 @@ public enum recv_color_format_ex_e
     NDIlib_recv_color_format_compressed_v5_with_audio = NDIlib_recv_color_format_ex_compressed_v5_with_audio,
 
     // Make sure this is a 32-bit enumeration.
-    NDIlib_recv_color_format_ex_max = 0x7fffffff
-}
+    NDIlib_recv_color_format_ex_max = 0x7fffffff,
 
+    recv_color_format_best_444 = (int)recv_color_format_e.recv_color_format_best_444,
+    recv_color_format_e_BGRX_BGRA = (int)recv_color_format_e.recv_color_format_e_BGRX_BGRA,
+    recv_color_format_e_UYVY_BGRA = (int)recv_color_format_e.recv_color_format_e_UYVY_BGRA,
+    recv_color_format_e_RGBX_RGBA = (int)recv_color_format_e.recv_color_format_e_RGBX_RGBA,
+    recv_color_format_e_UYVY_RGBA = (int)recv_color_format_e.recv_color_format_e_UYVY_RGBA,
+    recv_color_format_max = (int)recv_color_format_e.recv_color_format_max,
+    NDIlib_recv_color_format_ex_compressed_v6 = (int)NDIConstants.NDIlib_recv_color_format_ex_compressed_v6,
+    NDIlib_recv_color_format_compressed_v6 = (int)NDIConstants.NDIlib_recv_color_format_compressed_v6,
+    NDIlib_recv_color_format_ex_compressed_v6_best = (int)NDIConstants.NDIlib_recv_color_format_ex_compressed_v6_best,
+    NDIlib_recv_color_format_compressed_v6_best = (int)NDIConstants.NDIlib_recv_color_format_compressed_v6_best,
+    NDIlib_recv_color_format_ex_compressed_v6_with_audio = (int)NDIConstants.NDIlib_recv_color_format_ex_compressed_v6_with_audio,
+    NDIlib_recv_color_format_compressed_v6_with_audio = (int)NDIConstants.NDIlib_recv_color_format_compressed_v6_with_audio,
+}

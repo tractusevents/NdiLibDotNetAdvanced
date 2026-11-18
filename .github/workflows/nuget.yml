@@ -68,6 +68,18 @@ jobs:
           --no-self-contained
           -p:ContinuousIntegrationBuild=true
 
+      - name: Verify the managed SDK contract and layouts
+        run: dotnet run --project tests/AbiLayout/AbiLayout.csproj --configuration Release
+
+      - name: Configure the native finder fixture
+        run: cmake -S tests/FinderFixture -B "${{ runner.temp }}/ndi-finder"
+
+      - name: Build the native finder fixture
+        run: cmake --build "${{ runner.temp }}/ndi-finder" --config Release
+
+      - name: Test discovery updates and allocations
+        run: ctest --test-dir "${{ runner.temp }}/ndi-finder" -C Release --output-on-failure
+
   package:
     name: Create package
     if: github.event_name == 'push'

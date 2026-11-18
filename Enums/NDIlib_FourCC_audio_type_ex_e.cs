@@ -1,6 +1,5 @@
-using System;
-
 namespace Tractus.Ndi;
+
 public enum NDIlib_FourCC_audio_type_ex_e : uint
 {
     NDIlib_FourCC_audio_type_ex_AAC = 0x00ff,
@@ -10,6 +9,8 @@ public enum NDIlib_FourCC_audio_type_ex_e : uint
     NDIlib_FourCC_audio_type_ex_OPUS = ((uint)'O' | ((uint)'p' << 8) | ((uint)'u' << 16) | ((uint)'s' << 24)),  //NDI_LIB_FOURCC('O', 'p', 'u', 's'),
 
     // Make sure this is a 32-bit enumeration.
-    NDIlib_FourCC_audio_type_ex_max = 0x7fffffff
-}
+    NDIlib_FourCC_audio_type_ex_max = 0x7fffffff,
 
+    NDIlib_FourCC_audio_type_ex_AAC_protected = NDIlib_FourCC_audio_type_ex_AAC | 0x80808080u,
+    NDIlib_FourCC_audio_type_ex_OPUS_protected = NDIlib_FourCC_audio_type_ex_OPUS | 0x80808080u,
+}

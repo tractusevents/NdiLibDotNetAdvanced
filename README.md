@@ -32,7 +32,47 @@ high-level abstraction hiding SDK behavior.
 ## Notes
 
 - This project exposes both safe (e.g. passing structs by `ref`) and `unsafe` methods (e.g. passing structs by pointer) for most SDK entrypoints.
-- This project assumes use of NDI 6.3. Using older versions of the NDI SDK with this wrapper may result in undefined behavior.
+- Use a 6.4 native runtime for the 6.4 entry points. The File API loads its own runtime on first use.
+
+## NDI 6.4
+
+The wrapper includes the 6.4 video-only bandwidth modes, receive audio and video delays,
+SDK timestamps, and all File recorder and player functions in `Tractus.Ndi.Sdk64.NDIFile`.
+Select `recv_color_format_e.recv_color_format_best_444` to request native 4:4:4 video.
+Inspect each frame's FourCC. `NA48` and `NB48` use 8-bit planes, and `NA4G` and `NB4G`
+use 16-bit planes. The `NB` variants include an alpha plane.
+
+Call `NDIWrapper.Initialize(true, exactLibLookupPath, exactFileLibLookupPath)` before
+the first native call to specify both libraries. Each file recorder records one source.
+After stopping a recorder, drain its events through `file_closed` before destroying the
+handle or consuming the completed file. Keep create-structure string pointers alive as
+required by the native SDK, and keep allocator or async completion delegates rooted while
+the SDK can call them.
+
+### Finder snapshots
+
+Use `finder.GetCurrentSourceSnapshot()` to iterate the current list without allocating.
+The view and its `NdiSource` entries stay valid across later updates. The existing
+`GetCurrentSourceList()` returns a caller-owned array for code that sorts or modifies it.
+A change of URL for the same name publishes a new entry. A change in order alone
+preserves the previous snapshot and its order. `SourceListChanged` notifications are
+coalesced and dispatched off the finder thread.
+
+### Updating existing applications
+
+Rebuild applications and dependent assemblies when upgrading from 2026.10.29.1.
+
+- `audio_frame_interleaved_32s_t` now has the SDK's `reference_level` field before `p_data`.
+  `sender_t.p_address` is a native UTF-8 pointer. Copy its contents while the sender list is valid.
+- `recv_request_keyframe`, `framesync_capture_audio` and `framesync_capture_audio_v2` return
+  `void`. The v3 interleaved audio converters return the SDK success flag.
+- Pass frame structs by `ref` or pass typed frame pointers to `recv_capture_v3`.
+  The former three-`out nint` overload provided insufficient storage for native frame descriptors.
+- `recv_color_format_BGRX_BGRA_flipped` has the SDK value 1000. Replace any persisted
+  legacy value 200 for this mode. Rebuilding also updates inlined enum constants.
+- UTF-8 string inputs accept a trailing NUL. Embedded NULs throw `ArgumentException`.
+  The byte count returned by `UTF.StringToUtf8` excludes the terminator.
+
 
 ## Successor to NDILibDotNetCoreBase
 
@@ -170,20 +210,29 @@ column; passing `false` selects the Basic column.
 | Platform | Basic SDK | Advanced SDK |
 | --- | --- | --- |
 | Windows x86-64 | `Processing.NDI.Lib.x64.dll` | `Processing.NDI.Lib.Advanced.x64.dll` |
-| Linux | `libndi.so` | `libndi_advanced.so`, `libNdiAdv.so`, `libndi_adv.so` |
+| Linux | `libndi.so`, `libndi.so.6` | `libndi_advanced.so`, `libndi_advanced.so.6`, `libndi_advanced.so.6.4.0`, `libNdiAdv.so`, `libndi_adv.so` |
 | macOS | `libndi.dylib` | `libndi_advanced.dylib`, `libNdiAdv.dylib` |
 
 The names are tried in the application base directory, current working directory,
-assembly directory, and paths supplied through `NDI_RUNTIME_DIR`, `NDI_LIBRARY_PATH`,
+assembly directory, and paths supplied through `NDI_RUNTIME_DIR`, `NDI_RUNTIME_DIR_V6`, `NDI_FILE_RUNTIME_DIR`, `NDI_LIBRARY_PATH`,
 or `NDI_SDK_DIR`. For each environment path, its `lib` and `bin` subdirectories are
-also searched. Linux additionally searches `/usr/local/lib`, `/usr/lib`, and
+also searched. On Windows the SDK root also contributes its `Bin/x64` directory. Linux additionally searches `/usr/local/lib`, `/usr/lib`, and
 `/usr/lib/x86_64-linux-gnu`. Finally, the loader asks the operating system to resolve
 each filename using its normal native-library search rules. Filename casing matters
 on case-sensitive filesystems.
 
 When `exactLibLookupPath` is supplied, only that exact path is tried and the normal
-filename search is skipped. The automatic Windows lookup currently supports x86-64
-processes only; other Windows process architectures throw `NotImplementedException`.
+filename search is skipped. The automatic Windows lookup for the main runtime supports x86-64. An exact DLL path can be used on other architectures when a compatible runtime is available.
+
+## Verifying the bindings
+
+Run `dotnet run -c Release --project tests/AbiLayout` to verify the release contract and
+64-bit layouts. To regenerate the checked-in contract from an installed SDK, run
+`python tests/sdk-contract.py <SDK include directory> --output tests/AbiLayout/sdk-6.4.tsv`.
+The probe uses the platform C++ compiler. On Windows run it in a Visual Studio developer prompt.
+Set `NDI64_TEST_ADVANCED_LIBRARY` and `NDI64_TEST_FILE_LIBRARY` to exact library paths
+to enable native smoke tests. The CI workflow also builds the portable finder fixture and
+runs its discovery and allocation checks.
 
 ## NuGet packages
 
