@@ -236,9 +236,9 @@ runs its discovery and allocation checks.
 
 ## NuGet packages
 
-The managed assembly is platform-neutral, so CI produces one NuGet package. Every
-push to `main` or `master` builds the project on the following GitHub-hosted runners
-before creating the package.
+The managed assembly is platform-neutral, so CI produces one NuGet package. A single
+Ubuntu x86-64 runner builds the library for all five targets and runs the SDK contract,
+layout, and native finder tests on Linux x86-64.
 
 - Windows x86-64 (`win-x64`) and ARM64 (`win-arm64`)
 - macOS Apple Silicon (`osx-arm64`)
@@ -282,9 +282,8 @@ If NuGet.org initially marks the policy as pending, make the first matching publ
 within seven days. A successful publish permanently activates the policy; NuGet.org
 also lets you restart an expired activation window.
 
-Linux and macOS filename lookup works in ARM64 processes. The Windows ARM64 CI job
-validates the managed package only; automatic native lookup is not currently supported
-for that process architecture.
+Linux and macOS filename lookup works in ARM64 processes. Windows ARM64 callers
+must supply an exact DLL path for a compatible main runtime.
 
 ### Legal
 

@@ -8,7 +8,7 @@
     <PackageId>NDILibDotNetAdvanced</PackageId>
     <Title>.NET Wrapper for the NDI Basic and Advanced SDKs</Title>
     <Authors>Tractus Events</Authors>
-    <VersionPrefix>2026.11.18.1</VersionPrefix>
+    <VersionPrefix>2026.11.18.2</VersionPrefix>
     <Description>Thin managed interop wrapper for the NDI Basic and Advanced SDK libraries on Windows, macOS, and Linux. Intended for developers familiar with the native NDI SDK. Supersedes NDILibDotNetCoreBase.</Description>
     <PackageProjectUrl>https://github.com/tractusevents/NdiLibDotNetAdvanced</PackageProjectUrl>
     <RepositoryUrl>https://github.com/tractusevents/NdiLibDotNetAdvanced</RepositoryUrl>

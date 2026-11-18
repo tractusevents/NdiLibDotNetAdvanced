@@ -21,28 +21,9 @@ env:
 
 jobs:
   validate:
-    name: Validate ${{ matrix.name }}
-    runs-on: ${{ matrix.runner }}
+    name: Validate
+    runs-on: ubuntu-latest
     timeout-minutes: 20
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - name: Windows x86-64
-            runner: windows-latest
-            rid: win-x64
-          - name: Windows ARM64
-            runner: windows-11-arm
-            rid: win-arm64
-          - name: macOS ARM64
-            runner: macos-latest
-            rid: osx-arm64
-          - name: Linux x86-64
-            runner: ubuntu-latest
-            rid: linux-x64
-          - name: Linux ARM64
-            runner: ubuntu-24.04-arm
-            rid: linux-arm64
 
     steps:
       - name: Check out source
@@ -53,17 +34,13 @@ jobs:
         with:
           global-json-file: global.json
 
-      - name: Restore ${{ matrix.rid }}
-        run: dotnet restore NDILibDotNetAdvanced.csproj --runtime ${{ matrix.rid }}
-
-      - name: Build ${{ matrix.rid }}
-        run: >-
-          dotnet build NDILibDotNetAdvanced.csproj
-          --configuration Release
-          --no-restore
-          --runtime ${{ matrix.rid }}
-          --no-self-contained
-          -p:ContinuousIntegrationBuild=true
+      - name: Build all five runtime targets
+        shell: bash
+        run: |
+          for rid in win-x64 win-arm64 osx-arm64 linux-x64 linux-arm64; do
+            dotnet build NDILibDotNetAdvanced.csproj --configuration Release \
+              --runtime "$rid" --no-self-contained -p:ContinuousIntegrationBuild=true
+          done
 
       - name: Verify the managed SDK contract and layouts
         run: dotnet run --project tests/AbiLayout/AbiLayout.csproj --configuration Release
